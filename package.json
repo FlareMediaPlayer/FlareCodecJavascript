@@ -1,15 +1,22 @@
 {
-    "name": "FlareCodecJavascript",
-    "version": "1.0.0",
+    "name": "flare-codec",
+    "main" : "src/flare-codec.js",
+    "version": "0.0.0",
     "keywords": [
-        "util",
-        "functional",
-        "server",
-        "client",
         "browser"
     ],
     "author": "Brian Parra",
     "contributors": [
     ],
-    "dependencies": {}
+    "dependencies": {
+    },
+    "devDependencies": {
+    "browserify": "^13.0.1",
+    "browserify-shim": "^3.5.0",
+    "uglify-js": "2.7.0",
+    "babel-cli": "6.10.1",
+    "babel-preset-es2015": "6.9.0",
+    "envify": "3.4.1"
+  }
+    
 }

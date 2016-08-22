@@ -12,19 +12,7 @@ and open the template in the editor.
         <script src="../build/flare-codec-0.0.0.js"></script>
         <script>
             
-            class Webm{
-                
-            }
 
-            class EBML {
-                //https://github.com/Matroska-Org/ebml-specification/blob/master/specification.markdown
-                static loadEbml(dataview) {
-                    var position = 0;
-                    var id = dataview.getUint8(position);
-                    console.log(id);
-                }
-
-            }
 
             var oReq = new XMLHttpRequest();
             oReq.open("GET", "out9.webm", true);

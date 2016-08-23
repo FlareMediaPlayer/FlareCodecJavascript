@@ -9,7 +9,7 @@ class Webm {
 
         this.dataview = new DataView(arrayBuffer);
         this.header = null;
-        this.elements = [];
+
 
     }
 
@@ -29,7 +29,7 @@ class Webm {
             element.setOffset(0);
             element.setSize(elementSize);
             element.parse();
-            this.elements.push(element);
+            this.header = element;
         } else {
             console.log("element not found");
         }
@@ -45,6 +45,14 @@ class Webm {
         webm.parse();
         return webm;
 
+    }
+    
+    toJson(){
+        var webm = {
+            header : this.header
+        };
+        
+        return JSON.stringify(webm, null, 2) ;
     }
 
 }
@@ -134,7 +142,7 @@ class EBMLUnsignedInteger extends Element {
         }
         
         this.value = tempOctet;
-        console.log(this.value);
+
     }
 
 }
@@ -147,6 +155,18 @@ class EBMLString extends Element {
         this.length;// 0 to max
         this.value;// value of the integer
 
+    }
+    
+    parse(){
+        
+        var tempOffset = this._offset + this.getIdLength() + this._size.width; // The offset where the data starts
+        var charCount = this._size.data; // Number of characters to read
+        var tempString = '';
+        for(var i = 0; i < charCount; i++){
+            tempString += String.fromCharCode(this._dataView.getUint8(tempOffset + i));
+        }
+        this.value = tempString;
+        
     }
 
 }
@@ -207,7 +227,6 @@ class EBMLMasterElement extends Element {
         tempOffset += elementId.width;
 
         var elementSize = VINT.read(this._dataView, tempOffset);
-        console.log(elementId);
         var elementClass = Element.ClassTable[elementId.raw];
         var element;
 
@@ -372,7 +391,6 @@ Element.ClassTable[Element.IdTable.Void]= Void;
 
 
 
-console.log(Element.IdTable);
 
 if (process.env.MODE === "global") {
 

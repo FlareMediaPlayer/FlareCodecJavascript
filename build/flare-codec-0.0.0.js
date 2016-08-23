@@ -374,11 +374,57 @@ class EBMLVersion extends EBMLUnsignedInteger {
         super(Element.IdTable.EBMLVersion, dataView);
         this.EBMLClass = 'B';
     }
-    
-    
 
 }
 
+class EBMLReadVersion extends EBMLUnsignedInteger {
+    constructor(dataView) {
+        super(Element.IdTable.EBMLReadVersion, dataView);
+        this.EBMLClass = 'B';
+    }
+}
+
+class EBMLMaxIDLength extends EBMLUnsignedInteger {
+    constructor(dataView) {
+        super(Element.IdTable.EBMLMaxIDLength, dataView);
+        this.EBMLClass = 'B';
+    }
+}
+
+class EBMLMaxSizeLength extends EBMLUnsignedInteger {
+    constructor(dataView) {
+        super(Element.IdTable.EBMLMaxSizeLength, dataView);
+        this.EBMLClass = 'B';
+    }
+}
+
+class DocType extends EBMLString {
+    constructor(dataView) {
+        super(Element.IdTable.DocType, dataView);
+        this.EBMLClass = 'B';
+    }
+}
+
+class DocTypeVersion extends EBMLUnsignedInteger {
+    constructor(dataView) {
+        super(Element.IdTable.DocTypeVersion, dataView);
+        this.EBMLClass = 'B';
+    }
+}
+
+class DocTypeReadVersion extends EBMLUnsignedInteger {
+    constructor(dataView) {
+        super(Element.IdTable.DocTypeReadVersion, dataView);
+        this.EBMLClass = 'B';
+    }
+}
+
+class Void extends EBMLBinary{
+    constructor(dataView) {
+        super(Element.IdTable.Void, dataView);
+        this.EBMLClass = 'A';
+    }
+}
 
 Element.IdTable = {
     //Basics
@@ -395,10 +441,19 @@ Element.IdTable = {
 
 }
 
+//Create lookup element to find classes
 Element.ClassTable = {};
-
+//Basics
 Element.ClassTable[Element.IdTable.EBML] = EBML;
 Element.ClassTable[Element.IdTable.EBMLVersion] = EBMLVersion;
+Element.ClassTable[Element.IdTable.EBMLReadVersion] = EBMLReadVersion;
+Element.ClassTable[Element.IdTable.EBMLMaxIDLength] = EBMLMaxIDLength;
+Element.ClassTable[Element.IdTable.EBMLMaxSizeLength] = EBMLMaxSizeLength;
+Element.ClassTable[Element.IdTable.DocType] = DocType;
+Element.ClassTable[Element.IdTable.DocTypeVersion] = DocTypeVersion;
+Element.ClassTable[Element.IdTable.DocTypeReadVersion] = DocTypeReadVersion;
+//Global
+Element.ClassTable[Element.IdTable.Void]= Void;
 
 
 

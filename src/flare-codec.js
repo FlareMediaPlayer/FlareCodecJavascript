@@ -9,6 +9,7 @@ class Webm {
 
         this.dataview = new DataView(arrayBuffer);
         this.header = null;
+        this.body = null;
 
 
     }
@@ -33,6 +34,22 @@ class Webm {
         } else {
             console.log("element not found");
         }
+        
+        var bodyOffset = this.header.getTotalSize();
+        offset = bodyOffset
+        elementId = VINT.read(this.dataview, offset);
+        elementClass = Element.ClassTable[elementId.raw];
+        offset += elementId.width;
+        elementSize = VINT.read(this.dataview, offset);
+        if (elementClass) {
+            element = new elementClass(this.dataview);
+            element.setOffset(bodyOffset);
+            element.setSize(elementSize);
+            element.parse();
+            this.body = element;
+        } else {
+            console.log("body");
+        }
 
         console.log(this);
 
@@ -49,7 +66,8 @@ class Webm {
     
     toJson(){
         var webm = {
-            header : this.header
+            header : this.header,
+            body : this.body
         };
         
         return JSON.stringify(webm, null, 2) ;
@@ -83,7 +101,7 @@ class Element {
     }
 
     parse() {
-        console.log("This needs to be overridden");
+        console.log("Needs to be implemented");
     }
 
     getIdLength() {
@@ -220,9 +238,11 @@ class EBMLMasterElement extends Element {
     getNextElement(internalOffset) {
 
         var tempOffset = internalOffset;
+        
         var elementOffset = internalOffset;
 
         var elementId = VINT.read(this._dataView, internalOffset);
+        
 
         tempOffset += elementId.width;
 
@@ -240,7 +260,7 @@ class EBMLMasterElement extends Element {
 
         } else {
 
-            console.log("Element Not Found");
+            console.log("Element Not Found" + elementId.raw);
             return false;
 
         }
@@ -250,25 +270,31 @@ class EBMLMasterElement extends Element {
     }
 
     parse() {
-
+        
         var tempOffset = this._offset + this.getIdLength() + this._size.width;
-
+        
         var nextElement;
+        
+        if(this._id === Element.IdTable.Seek){
+            //console.log("total size is is : " + this.getTotalSize());
+        }
 
-
-        while (tempOffset < this.getTotalSize()) {
+        while (tempOffset < this._offset + this.getTotalSize()) {
+            
             nextElement = this.getNextElement(tempOffset);
             if (nextElement) {
                 this.elements.push(nextElement);
                 nextElement.parse();
                 tempOffset += nextElement.getTotalSize();
             } else {
+                console.log("Element Not Found" + this);
                 break;
+                
             }
 
         }
 
-        console.log("parsing");
+       
 
 
     }
@@ -280,9 +306,14 @@ class EBMLBinary extends Element {
     constructor(id, dataView) {
 
         super(id, dataView);
-        this.length;// 
+        //this.length;// 
         this.data;
+        this._dataOffset;
 
+    }
+    
+    parse(){
+        this._dataOffset = this._offset + this.getIdLength() + this._size.width;
     }
 
 }
@@ -357,6 +388,46 @@ class Void extends EBMLBinary{
     constructor(dataView) {
         super(Element.IdTable.Void, dataView);
         this.EBMLClass = 'A';
+    }
+}
+
+class Segment extends EBMLMasterElement{
+    
+    constructor(dataView) {
+        
+        super(Element.IdTable.Segment, dataView);
+        this.EBMLClass = 'D';
+
+    }
+    
+}
+
+class SeekHead extends EBMLMasterElement{
+    constructor(dataView) { 
+        super(Element.IdTable.SeekHead, dataView);
+        this.EBMLClass = 'D';
+    }
+}
+
+class Seek extends EBMLMasterElement{
+    constructor(dataView) { 
+        super(Element.IdTable.Seek, dataView);
+        this.EBMLClass = 'B';
+        console.log("seek");
+    }
+}
+
+class SeekID extends EBMLBinary{
+    constructor(dataView) { 
+        super(Element.IdTable.SeekID, dataView);
+        this.EBMLClass = 'B';
+    }
+}
+
+class SeekPosition extends EBMLUnsignedInteger{
+    constructor(dataView) { 
+        super(Element.IdTable.SeekPosition, dataView);
+        this.EBMLClass = 'B';
     }
 }
 
@@ -498,7 +569,13 @@ Element.ClassTable[Element.IdTable.DocTypeVersion] = DocTypeVersion;
 Element.ClassTable[Element.IdTable.DocTypeReadVersion] = DocTypeReadVersion;
 //Global
 Element.ClassTable[Element.IdTable.Void]= Void;
-
+//Segment
+Element.ClassTable[Element.IdTable.Segment] = Segment;
+//Meta Seek
+Element.ClassTable[Element.IdTable.SeekHead] = SeekHead;
+Element.ClassTable[Element.IdTable.Seek] = Seek;
+Element.ClassTable[Element.IdTable.SeekID] = SeekID;
+Element.ClassTable[Element.IdTable.SeekPosition] = SeekPosition;
 
 
 

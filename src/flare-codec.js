@@ -18,7 +18,7 @@ class Webm {
 
         var offset = 0;
         var elementId = VINT.read(this.dataview, offset);
-        console.log(elementId);
+        //console.log(elementId);
         offset += elementId.width;
         var elementSize = VINT.read(this.dataview, offset);
 
@@ -243,8 +243,8 @@ class EBMLMasterElement extends Element {
 
         var elementId = VINT.read(this._dataView, internalOffset);
         
-        if (this._id === Element.IdTable.Info) {
-            console.log(elementId);
+        if (this._id === Element.IdTable.Segment) {
+            console.log(internalOffset);
         }
         
         tempOffset += elementId.width;
@@ -483,7 +483,105 @@ class WritingApp extends EBMLUTF8 {
     }
 }
 
+class Cluster extends EBMLMasterElement {
+    constructor(dataView) {
+        super(Element.IdTable.Cluster, dataView);
+        this.EBMLClass = 'D';
 
+    }
+}
+
+class Timecode extends EBMLUnsignedInteger {
+    constructor(dataView) {
+        super(Element.IdTable.Timecode, dataView);
+        this.EBMLClass = 'A';
+    }
+}
+
+class PrevSize extends EBMLUnsignedInteger {
+    constructor(dataView) {
+        super(Element.IdTable.PrevSize, dataView);
+        this.EBMLClass = 'A';
+    }
+}
+
+class SimpleBlock extends EBMLBinary {
+    constructor(dataView) {
+        super(Element.IdTable.SimpleBlock, dataView);
+        this.EBMLClass = 'A';
+    }
+}
+
+class BlockGroup extends EBMLMasterElement {
+    constructor(dataView) {
+        super(Element.IdTable.BlockGroup, dataView);
+        this.EBMLClass = 'A';
+    }
+}
+
+class Block extends EBMLBinary {
+    constructor(dataView) {
+        super(Element.IdTable.Block, dataView);
+        this.EBMLClass = 'A';
+    }
+}
+
+
+class BlockAdditions extends EBMLMasterElement {
+    constructor(dataView) {
+        super(Element.IdTable.BlockAdditions, dataView);
+        this.EBMLClass = 'B';
+    }
+}
+
+class BlockMore extends EBMLMasterElement {
+    constructor(dataView) {
+        super(Element.IdTable.BlockMore, dataView);
+        this.EBMLClass = 'A';
+    }
+}
+
+class BlockAddID extends EBMLUnsignedInteger {
+    constructor(dataView) {
+        super(Element.IdTable.BlockAddID, dataView);
+        this.EBMLClass = 'A';
+    }
+}
+
+class BlockAdditional extends EBMLBinary {
+    constructor(dataView) {
+        super(Element.IdTable.BlockAdditional, dataView);
+        this.EBMLClass = 'A';
+    }
+}
+
+class BlockDuration extends EBMLUnsignedInteger {
+    constructor(dataView) {
+        super(Element.IdTable.BlockDuration, dataView);
+        this.EBMLClass = 'A';
+    }
+}
+
+class ReferenceBlock extends EBMLSignedInteger {
+    constructor(dataView) {
+        super(Element.IdTable.ReferenceBlock, dataView);
+        this.EBMLClass = 'A';
+    }
+}
+
+class DiscardPadding extends EBMLSignedInteger {
+    constructor(dataView) {
+        super(Element.IdTable.DiscardPadding, dataView);
+        this.EBMLClass = 'A';
+    }
+}
+
+class Tracks extends EBMLMasterElement {
+    constructor(dataView) {
+        super(Element.IdTable.Tracks, dataView);
+        this.EBMLClass = 'D';
+    }
+}
 
 Element.IdTable = {
     //Basics
@@ -638,6 +736,23 @@ Element.ClassTable[Element.IdTable.DateUTC] = DateUTC;
 Element.ClassTable[Element.IdTable.Title] = Title;
 Element.ClassTable[Element.IdTable.MuxingApp] = MuxingApp;
 Element.ClassTable[Element.IdTable.WritingApp] = WritingApp;
+//Cluster
+Element.ClassTable[Element.IdTable.Cluster] = Cluster;
+Element.ClassTable[Element.IdTable.Timecode] = Timecode;
+Element.ClassTable[Element.IdTable.PrevSize] = PrevSize;
+Element.ClassTable[Element.IdTable.SimpleBlock] = SimpleBlock;
+Element.ClassTable[Element.IdTable.BlockGroup] = BlockGroup;
+Element.ClassTable[Element.IdTable.Block] = Block;
+Element.ClassTable[Element.IdTable.BlockAdditions] = BlockAdditions;
+Element.ClassTable[Element.IdTable.BlockMore] = BlockMore;
+Element.ClassTable[Element.IdTable.BlockAddID] = BlockAddID;
+Element.ClassTable[Element.IdTable.BlockAdditional] = BlockAdditional;
+Element.ClassTable[Element.IdTable.BlockDuration] = BlockDuration;
+Element.ClassTable[Element.IdTable.ReferenceBlock] = ReferenceBlock;
+Element.ClassTable[Element.IdTable.DiscardPadding] = DiscardPadding;
+//Tracks
+Element.ClassTable[Element.IdTable.Tracks] = Tracks;
+
 
 console.log(Element.IdTable);
 

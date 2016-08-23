@@ -33,7 +33,7 @@ class VINT{
         switch(vint_width){
             case 1:
                 vint_raw = tempOctet;
-                vint_data = tempOctet & 0x80;
+                vint_data = tempOctet & 0x7F;
                 break;
             case 2:
                 vint_raw = dataview.getUint16(offset);
@@ -48,11 +48,22 @@ class VINT{
                 vint_data = vint_raw & 0x0FFFFFFF;
                 break;
             case 5:
+                vint_raw = dataview.getUint32(offset);
+                var secondInt = dataview.getUint8(offset + 4);
+                vint_raw = (firstInt << 8) | secondInt;
+                vint_data = vint_raw & 0x07FFFFFFFF;
                 break;
             case 6:
+                vint_raw = dataview.getUint32(offset);
+                var secondInt = dataview.getUint16(offset + 4);
+                vint_raw = (firstInt << 16) | secondInt;
+                vint_data = vint_raw & 0x01FFFFFFFFFF;
                 break;
             case 7:
-                console.log("case 7");
+                vint_raw = dataview.getUint32(offset);
+                var secondInt = dataview.getUint32(offset + 4) & 0xFFFFFF;
+                vint_raw = (firstInt << 24) | secondInt;
+                vint_data = vint_raw & 0x01FFFFFFFFFFFF;
                 break;
             case 8:
                 //Largest allowable integer in javascript is 2^53-1 so gonna have to use one less bit for now

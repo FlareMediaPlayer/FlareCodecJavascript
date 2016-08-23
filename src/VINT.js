@@ -40,8 +40,8 @@ class VINT{
                 vint_data = vint_raw & 0x3FFF;
                 break;
             case 3:
-                vint_raw = dataview.getUint32(offset);
-                vint_data = vint_raw & 0x001FFFFF;
+                vint_raw = dataview.getUint32(offset) >> 8;
+                vint_data = vint_raw & 0x1FFFFF;
                 break;
             case 4:
                 vint_raw = dataview.getUint32(offset);

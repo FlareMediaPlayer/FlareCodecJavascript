@@ -243,7 +243,10 @@ class EBMLMasterElement extends Element {
 
         var elementId = VINT.read(this._dataView, internalOffset);
         
-
+        if (this._id === Element.IdTable.Info) {
+            console.log(elementId);
+        }
+        
         tempOffset += elementId.width;
 
         var elementSize = VINT.read(this._dataView, tempOffset);
@@ -275,7 +278,7 @@ class EBMLMasterElement extends Element {
         
         var nextElement;
         
-        if(this._id === Element.IdTable.Seek){
+        if(this._id === Element.IdTable.Info){
             //console.log("total size is is : " + this.getTotalSize());
         }
 
@@ -413,7 +416,6 @@ class Seek extends EBMLMasterElement{
     constructor(dataView) { 
         super(Element.IdTable.Seek, dataView);
         this.EBMLClass = 'B';
-        console.log("seek");
     }
 }
 
@@ -430,6 +432,58 @@ class SeekPosition extends EBMLUnsignedInteger{
         this.EBMLClass = 'B';
     }
 }
+
+class Info extends EBMLMasterElement{
+    constructor(dataView) { 
+        super(Element.IdTable.Info, dataView);
+        this.EBMLClass = 'D';
+      
+    }
+}
+
+class TimecodeScale extends EBMLUnsignedInteger {
+    constructor(dataView) {
+        super(Element.IdTable.TimecodeScale, dataView);
+        this.EBMLClass = 'C';
+    }
+}
+
+class Duration extends EBMLFloat {
+    constructor(dataView) {
+        super(Element.IdTable.Duration, dataView);
+        this.EBMLClass = 'B';
+    }
+}
+
+class DateUTC extends EBMLDate {
+    constructor(dataView) {
+        super(Element.IdTable.DateUTC, dataView);
+        this.EBMLClass = 'B';
+    }
+}
+
+class Title extends EBMLUTF8 {
+    constructor(dataView) {
+        super(Element.IdTable.Title, dataView);
+        this.EBMLClass = 'B';
+    }
+}
+
+class MuxingApp extends EBMLUTF8 {
+    constructor(dataView) {
+        super(Element.IdTable.MuxingApp, dataView);
+        this.EBMLClass = 'B';
+    }
+}
+
+class WritingApp extends EBMLUTF8 {
+    constructor(dataView) {
+        super(Element.IdTable.WritingApp, dataView);
+        this.EBMLClass = 'B';
+    }
+}
+
+
 
 Element.IdTable = {
     //Basics
@@ -576,8 +630,16 @@ Element.ClassTable[Element.IdTable.SeekHead] = SeekHead;
 Element.ClassTable[Element.IdTable.Seek] = Seek;
 Element.ClassTable[Element.IdTable.SeekID] = SeekID;
 Element.ClassTable[Element.IdTable.SeekPosition] = SeekPosition;
+//Segment
+Element.ClassTable[Element.IdTable.Info] = Info;
+Element.ClassTable[Element.IdTable.TimecodeScale] = TimecodeScale;
+Element.ClassTable[Element.IdTable.Duration] = Duration;
+Element.ClassTable[Element.IdTable.DateUTC] = DateUTC;
+Element.ClassTable[Element.IdTable.Title] = Title;
+Element.ClassTable[Element.IdTable.MuxingApp] = MuxingApp;
+Element.ClassTable[Element.IdTable.WritingApp] = WritingApp;
 
-
+console.log(Element.IdTable);
 
 if (process.env.MODE === "global") {
 

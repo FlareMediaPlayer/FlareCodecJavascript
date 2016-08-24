@@ -221,6 +221,15 @@ class EBMLSignedInteger extends Element {
         this.value;// value of the integer
 
     }
+    
+    parse(){
+        if (this._size.data === 0){
+            this.value = 0;
+        }else{
+            var tempOffset = this._offset + this.getIdLength() + this._size.width;
+            this.value = VINT.read(this._dataView, tempOffset).data;
+        }
+    }
 
 }
 

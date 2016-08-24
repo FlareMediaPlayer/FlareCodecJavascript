@@ -292,6 +292,18 @@ class EBMLUTF8 extends Element {
         this.value;// value of the integer
 
     }
+    
+    parse(){
+       
+        var tempOffset = this._offset + this.getIdLength() + this._size.width; // The offset where the data starts
+        var charCount = this._size.data; // Number of characters to read
+        var tempString = '';
+        for(var i = 0; i < charCount; i++){
+            tempString += String.fromCharCode(this._dataView.getUint8(tempOffset + i));
+        }
+        this.value = btoa(tempString);
+        
+    }
 
 }
 

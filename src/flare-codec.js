@@ -1,6 +1,7 @@
 'use strict';
 
 var VINT = require('./VINT.js');
+var vp9 = require('./codecs/VP9/common/common-data.js');
 
 
 class Webm {

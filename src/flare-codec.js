@@ -243,10 +243,6 @@ class EBMLMasterElement extends Element {
 
         var elementId = VINT.read(this._dataView, internalOffset);
         
-        if (this._id === Element.IdTable.Segment) {
-            console.log(internalOffset);
-        }
-        
         tempOffset += elementId.width;
 
         var elementSize = VINT.read(this._dataView, tempOffset);
@@ -849,6 +845,13 @@ class ContentEncodingOrder extends EBMLUnsignedInteger {
     }
 }
 
+class FrameRate extends EBMLSignedInteger {
+    constructor(dataView) {
+        super(Element.IdTable.FrameRate, dataView);
+        this.EBMLClass = 'C';
+    }
+}
+
 class ContentEncodingScope extends EBMLUnsignedInteger {
     constructor(dataView) {
         super(Element.IdTable.ContentEncodingScope, dataView);
@@ -1195,6 +1198,7 @@ Element.IdTable = {
     ContentEncryption : 0x5035,
     ContentEncAlgo : 0x47E1,
     ContentEncKeyID : 0x47E2,
+    FrameRate : 0x2383E3,
     //ContentEncAESSettings : //For some reason this one isnt in the matroska spec
     //AESSettingsCipherMode //This one too
     //Colour
@@ -1348,6 +1352,7 @@ Element.ClassTable[Element.IdTable.ContentEncodingType] = ContentEncodingType;
 Element.ClassTable[Element.IdTable.ContentEncryption] = ContentEncryption;
 Element.ClassTable[Element.IdTable.ContentEncAlgo] = ContentEncAlgo;
 Element.ClassTable[Element.IdTable.ContentEncKeyID] = ContentEncKeyID;
+Element.ClassTable[Element.IdTable.FrameRate] = FrameRate;
 //Cueing Data
 Element.ClassTable[Element.IdTable.Cues] = Cues;
 Element.ClassTable[Element.IdTable.CuePoint] = CuePoint;

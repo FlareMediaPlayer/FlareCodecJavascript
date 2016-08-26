@@ -20,17 +20,7 @@ class EBMLHeader{
     
     constructor(dataView){
         this._dataView = dataView;
-        this._totalLength = 0;
-        this.elements = {};
-        this.elements.EBML;
-        this.elements.EBMLVersion;
-        this.elements.EBMLReadVersion;
-        this.elements.EBMLMaxIDLength;
-        this.elements.EBMLMaxSizeLength;
-        this.elements.DocType;
-        this.elements.DocTypeVersion;
-        this.elements.DocTypeReadVersion;
-
+        this._totalSize = 0;
         this.version;
         this.readVersion;
         this.maxIdLength;
@@ -44,11 +34,33 @@ class EBMLHeader{
     }
     
     parse(){
-        var offset = 0;
+        
+        var offset = 0;//assume header starts at 0 for now
+        var headerOffset = offset;
         var elementId = VINT.read(this._dataView, offset);
+
+        if(elementId.raw != Element.IdTable.EBML){
+            console.warn('INVALID HEADER')
+        }
+        
         offset += elementId.width;
         var elementSize = VINT.read(this._dataView, offset);
-
+        this._totalSize = elementId.width + elementSize.width + elementSize.data;
+        offset += elementSize.width;
+        /*
+        while (offset <  headerOffset + elementSize.data) {
+            
+            elementId = VINT.read(this._dataView, offset);
+            offset += elementId.width;
+            elementSize = VINT.read(this._dataView, offset);
+            offset += elementSize.width;
+            
+            if(elementId.data < 0 | elementSize.data < 0 | elementSize.data){
+                console.warn("invalid format");
+            }
+            
+        }
+        
         //Lookup
         var elementClass = Element.ClassTable[elementId.raw];
         var element;
@@ -58,7 +70,6 @@ class EBMLHeader{
             element.setOffset(0);
             element.setSize(elementSize);
             element.parse();
-            this.elements.EBML = element;
             this._totalSize = element.getTotalSize();
             
         } else {
@@ -66,11 +77,66 @@ class EBMLHeader{
             console.log("element not found");
         
         }
-    }
-    
-    validate(){
+            */
+        var element;
+        var end = headerOffset + elementId.width + elementSize.width+ elementSize.data; //total header size
+        while (offset <  end) {
+            element = Element.getElement(this._dataView,offset , end );
+            if (element) {
+                offset += element.headerSize;
+                switch (element.id) {
+                    case Element.IdTable.EBMLVersion:
+                        this.version = Element.readUnsignedInt(this._dataView, offset, element.size );
+                        break;
+                    case Element.IdTable.EBMLReadVersion:
+                        this.readVersion = Element.readUnsignedInt(this._dataView, offset, element.size );
+                        break;
+                    case Element.IdTable.EBMLMaxIDLength:
+                        this.maxIdLength = Element.readUnsignedInt(this._dataView, offset, element.size );
+                        break;
+                    case Element.IdTable.EBMLMaxSizeLength:
+                        this.maxSizeLength = Element.readUnsignedInt(this._dataView, offset, element.size );
+                        break;
+                    case Element.IdTable.DocType:
+                        this.docType = Element.readString(this._dataView, offset, element.size );
+                        break;
+                    case Element.IdTable.DocTypeVersion:
+                        this.docTypeVersion = Element.readUnsignedInt(this._dataView, offset, element.size );
+                        break;
+                    case Element.IdTable.DocTypeReadVersion:
+                        this.docTypeReadVersion = Element.readUnsignedInt(this._dataView, offset, element.size );
+                        break;
+                    default:
+                        console.log("not found");
+                        break;
+                }
+            }else{
+                console.warn("File Reading error in header");
+            }
+
+            offset += element.size;
+        }
+
+        if (offset != end) {
+            console.warn("invalid file format");
+        }
+
+
+
+        if (this.docType === null || this.docTypeReadVersion <= 0 || this.docTypeVersion <= 0) {
+            console.warn("invalid file format");
+        }
+
+        // Make sure EBMLMaxIDLength and EBMLMaxSizeLength are valid.
+        if (this.maxIdLength <= 0 || this.maxIdLength > 4 || this.maxSizeLength <= 0 ||
+                this.maxSizeLength > 8) {
+            console.warn("invalid file format");
+        }
+        
         
     }
+    
+    
 }
 
 class Webm {
@@ -85,31 +151,11 @@ class Webm {
     }
 
     parse() {
-        /*
-        var offset = 0;
-        var elementId = VINT.read(this.dataview, offset);
-        //console.log(elementId);
-        offset += elementId.width;
-        var elementSize = VINT.read(this.dataview, offset);
 
-        //Lookup
-        var elementClass = Element.ClassTable[elementId.raw];
-        var element;
-        if (elementClass) {
-            element = new elementClass(this.dataview);
-            element.setOffset(0);
-            element.setSize(elementSize);
-            element.parse();
-            this.header = element;
-        } else {
-            console.log("element not found");
-        }
-        */
-        
         this.header.parse();
 
         var bodyOffset = this.header.getTotalSize();
-        var offset = bodyOffset
+        var offset = bodyOffset;
         var elementId = VINT.read(this.dataview, offset);
         var elementClass = Element.ClassTable[elementId.raw];
         offset += elementId.width;
@@ -160,15 +206,106 @@ class Webm {
 
 }
 
+
 class Element {
+
+    static readUnsignedInt(dataView, offset, size) {
+        //need to fix overflow for 64bit unsigned int
+        if (offset < 0 || size <= 0 || size > 8) {
+            console.warn("invalid file size");
+        }
+
+
+        var result = 0;
+        var b;
+
+        for (var i = 0; i < size; i++) {
+
+
+            b = dataView.getUint8(offset);
+            if(i === 0 && b < 0){
+                console.warn ("invalid integer value");
+            }
+
+            result <<= 8;
+            result |= b;
+
+            offset++;
+        }
+
+        return result;
+    }
+
+    static readString(dataView, offset, size) {
+        var tempString = '';
+        for (var i = 0; i < size; i++) {
+            tempString += String.fromCharCode(dataView.getUint8(offset + i));
+        }
+        return tempString;
+    }
+    
+    static getElement(dataView, offset, end){
+        
+        var elementOffset = offset;
+        if ( offset >= end){ 
+            console.warn("read error");
+            return false;
+        }
+            
+            
+        var elementIdVint = VINT.read(dataView, offset);
+        var elementId = elementIdVint.raw;
+        
+        
+        //Validate ID    
+        if (elementId < 0){
+            console.warn("id read error");
+            return false;
+        }else if(elementId === 0){
+            console.warn("invalid file format");
+            return false;
+        }
+        
+        //advance offset and
+        offset+= elementIdVint.width;
+        if (offset >= end){
+            console.warn("read error");
+            return false;
+        }
+        
+        //read the element size
+        var elementSize = VINT.read(dataView, offset);
+        if (elementSize.data < 0 || elementSize.width < 1 || elementSize.width > 8) {
+            console.warn("Invalid File Format");
+            return false;
+        }
+        
+        //advance offset and
+        offset+= elementSize.width;
+        if (offset >= end){
+            console.warn("read error");
+            return false;
+        }
+         
+        var element = new Element(elementIdVint.raw, dataView);
+        element.size = elementSize.data;
+        element.dataOffset = offset;
+        element.headerSize = elementSize.width + elementIdVint.width;
+        return element;
+    }
 
     constructor(id, dataView) {
 
         this._dataView = dataView;
         this._id = id;
+        this.id = id;
         this._offset;
         this._size;
         this._totalSize;
+        this.dataOffset;
+        this.status;
+        this.headerSize;
+        this.size;
 
     }
 
@@ -210,6 +347,7 @@ class Element {
 
         return length;
     }
+    
 
 }
 

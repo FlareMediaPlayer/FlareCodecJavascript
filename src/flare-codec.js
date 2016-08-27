@@ -97,6 +97,7 @@ class MasterSegment{
                         this.info.offset = elementOffset;
                         this.info.size = elementWidth.data;
                         this.info.dataOffset = offset;
+                        this.info.parse();
                 
                         break;
                         
@@ -151,6 +152,7 @@ class MasterSegment{
 }
 
 class SegmentInfo {
+    
     constructor(dataView) {
         this.dataView = dataView;
         this.offset;
@@ -159,7 +161,67 @@ class SegmentInfo {
         this.muxingApp;
         this.writingApp;
         this.title;
+        this.dataOffset;
+        this.timecodeScale;
+        this.duration;
 
+    }
+    
+    parse(){
+        console.log("parsing segment info");
+        var end = this.dataOffset + this.size;
+        var offset = this.dataOffset
+        
+        var elementId;
+        var elementWidth;
+        var elementOffset;
+        this.timecodeScale = 1000000;
+        this.duration = -1;
+                
+        while (offset < end) {
+            
+            elementOffset = offset;
+            elementId = VINT.read(this.dataView, offset);
+            offset += elementId.width;
+            elementWidth = VINT.read(this.dataView, offset);
+            offset += elementWidth.width;
+
+
+            switch (elementId.raw) {
+                case Element.IdTable.TimecodeScale:
+                    this.timecodeScale = Element.readUnsignedInt(this.dataView, offset, elementWidth.data );
+                    if (this.timecodeScale <= 0)
+                    console.warn("Invalid timecode scale");
+                    break;
+                case Element.IdTable.Duration:
+                    this.duration = Element.readFloat(this.dataView, offset, elementWidth.data );
+                    if (this.duration <= 0)
+                    console.warn("Invalid duration");
+                    break;    
+                case Element.IdTable.MuxingApp:
+                    this.muxingApp = Element.readString(this.dataView, offset, elementWidth.data );             
+                    break;
+                case Element.IdTable.WritingApp:
+                    this.writingApp = Element.readString(this.dataView, offset, elementWidth.data );
+                    
+                    break;
+                case Element.IdTable.Title:                    
+                    this.title = Element.readString(this.dataView, offset, elementWidth.data );
+                    break;
+                default:
+                    console.warn("segment info element not found");
+                    break;
+
+
+            }
+
+
+
+
+            offset += elementWidth.data;
+            
+        }
+        
     }
 }
 
@@ -356,6 +418,29 @@ class Element {
         }
 
         return result;
+    }
+    
+    static readFloat(dataView, offset, size) {
+        //need to fix overflow for 64bit unsigned int
+        if (offset < 0 && (size === 4  || size === 8)) {
+            console.warn("invalid float size");
+        }
+
+        if (size === 4){
+            return dataView.getFloat32(offset);
+        }else{
+            return dataView.getFloat64(offset);
+        }
+
+
+    }
+    
+    static readUT8F(dataView, offset, size){
+        var tempString = '';
+        for (var i = 0; i < size; i++) {
+            tempString += String.fromCharCode(dataView.getUint8(offset + i));
+        }
+        return btoa(tempString);
     }
 
     static readString(dataView, offset, size) {
@@ -1818,6 +1903,8 @@ MasterSegment.ElementTable[Element.IdTable.Info] = SegmentInfo;
 //MasterSegment.ElementTable[Element.IdTable.SeekHead] = true;
 //MasterSegment.ElementTable[Element.IdTable.Chapters] = true;
 //MasterSegment.ElementTable[Element.IdTable.Tags] = true;
+
+
 
 
 console.log(Element.IdTable);

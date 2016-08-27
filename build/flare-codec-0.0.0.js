@@ -387,6 +387,7 @@ class MasterSegment{
     }
     
     static CreateInstance(dataView, offset){
+        
         if (offset < 0){
             console.warn("invalid position");
         }
@@ -395,18 +396,16 @@ class MasterSegment{
         var elementId = VINT.read(dataView, offset);
         
         if(elementId.raw === Element.IdTable.Segment){
-            console.log("segment found");
+            //console.log("segment found");
             var segment = new MasterSegment(dataView);
             segment.offset = offset;
             offset += elementId.width;
             var elementSize = VINT.read(dataView, offset);
             segment.size = elementSize.data;
+            segment.dataOffset = offset + elementSize.width;
             offset+= elementSize.data;
-            segment.dataOffset = offset;
             return segment;
         }
-        
-
         
     }
     
@@ -427,35 +426,56 @@ class MasterSegment{
     }
     
     parseTopLevel() {
-
+        
         var offset = this.dataOffset;
         var end = this.offset + this.size;
         var elementId;
         var elementWidth;
         var elementOffset;
+        
         while (offset < end) {
             
+            //console.log(offset +","+ end);
             elementOffset = offset;
             elementId = VINT.read(this.dataView, offset);
-            
-            if(MasterSegment.ElementTable[elementId.raw]){
-                console.log("element found");
-            }else{
-                console.log("not found");
-            }
-            
             offset += elementId.width;
             elementWidth = VINT.read(this.dataView, offset);
             offset += elementWidth.width;
 
+            if(MasterSegment.ElementTable[elementId.raw]){
+                switch(elementId.raw){
+                    case Element.IdTable.Info:
+                        this.info = new SegmentInfo(this.dataView);
+                        this.info.offset = elementOffset;
+                        this.info.size = elementWidth.data;
+                        this.info.dataOffset = offset;
+                
+                        break;
+                        
+                    default:
+                        
+                        break;
+                        
+                        
+                }
+            
+            }else{
+            
+                console.warn("not found id = "  + elementId.raw);
+            
+            }
+            
+
 
             offset += elementWidth.data;
+            
         }
 
 
     }
     
     load(){
+        this.parseTopLevel();
    // Outermost (level 0) segment object has been constructed,
   // and pos designates start of payload.  We need to find the
   // inner (level 1) elements.
@@ -482,7 +502,18 @@ class MasterSegment{
     }
 }
 
+class SegmentInfo {
+    constructor(dataView) {
+        this.dataView = dataView;
+        this.offset;
+        this.size;
+        this.dataOffset;
+        this.muxingApp;
+        this.writingApp;
+        this.title;
 
+    }
+}
 
 
 class EBMLHeader{
@@ -572,9 +603,7 @@ class EBMLHeader{
             console.warn("invalid file format");
         }
         
-        
     }
-    
     
 }
 
@@ -597,6 +626,7 @@ class Webm {
         var offset = bodyOffset;
         this.body = MasterSegment.CreateInstance(this.dataview, offset);
         this.body.load();
+       
         /*
         var elementId = VINT.read(this.dataview, offset);
         var elementClass = Element.ClassTable[elementId.raw];
@@ -2134,12 +2164,12 @@ Element.ClassTable[Element.IdTable.TagString] = TagString;
 Element.ClassTable[Element.IdTable.TagBinary] = TagBinary;
 
 MasterSegment.ElementTable = {};
-MasterSegment.ElementTable[Element.IdTable.Info] = null;
-MasterSegment.ElementTable[Element.IdTable.Tracks] = null;
-MasterSegment.ElementTable[Element.IdTable.Cues] = null;
-MasterSegment.ElementTable[Element.IdTable.SeekHead] = null;
-MasterSegment.ElementTable[Element.IdTable.Chapters] = null;
-MasterSegment.ElementTable[Element.IdTable.Tags] = null;
+MasterSegment.ElementTable[Element.IdTable.Info] = SegmentInfo;
+//MasterSegment.ElementTable[Element.IdTable.Tracks] = true;
+//MasterSegment.ElementTable[Element.IdTable.Cues] = true;
+//MasterSegment.ElementTable[Element.IdTable.SeekHead] = true;
+//MasterSegment.ElementTable[Element.IdTable.Chapters] = true;
+//MasterSegment.ElementTable[Element.IdTable.Tags] = true;
 
 
 console.log(Element.IdTable);

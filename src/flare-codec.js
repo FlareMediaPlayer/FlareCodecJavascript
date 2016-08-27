@@ -90,29 +90,30 @@ class MasterSegment{
             elementWidth = VINT.read(this.dataView, offset);
             offset += elementWidth.width;
 
-            if(MasterSegment.ElementTable[elementId.raw]){
-                switch(elementId.raw){
-                    case Element.IdTable.Info:
-                        this.info = new SegmentInfo(this.dataView);
-                        this.info.offset = elementOffset;
-                        this.info.size = elementWidth.data;
-                        this.info.dataOffset = offset;
-                        this.info.parse();
-                
-                        break;
-                        
-                    default:
-                        
-                        break;
-                        
-                        
-                }
-            
-            }else{
-            
-                console.warn("not found id = "  + elementId.raw);
-            
+
+            switch (elementId.raw) {
+                case Element.IdTable.Info:
+                    this.info = new SegmentInfo(this.dataView);
+                    this.info.offset = elementOffset;
+                    this.info.size = elementWidth.data;
+                    this.info.dataOffset = offset;
+                    this.info.parse();
+                    break;
+                case Element.IdTable.Tracks:
+                    this.tracks = new Tracks(this.dataView);
+                    this.tracks.offset = elementOffset;
+                    this.tracks.size = elementWidth.data;
+                    this.tracks.dataOffset = offset;
+                    this.tracks.parse();
+                    break;
+                default:
+                    console.warn("not found id = " + elementId.raw);
+                    break;
+
+
             }
+            
+        
             
 
 
@@ -151,6 +152,179 @@ class MasterSegment{
     }
 }
 
+class Tracks{
+    constructor(dataView){
+        this.dataView = dataView;
+        this.segment;
+        this.offset;
+        this.dataOffset;
+        this.size;
+        this.trackEntries;
+        this.trackEntriesEnd;
+        
+    }
+    
+    parse() {
+        console.log("parsing tracks");
+        this.trackEntries = null;
+        this.trackEntriesEnd = null;
+
+        var end = this.dataOffset + this.size;
+        var offset = this.dataOffset;
+        var count = 0;
+        var elementId;
+        var elementWidth;
+        var elementOffset;
+
+        while (offset < end) {
+
+            elementId = VINT.read(this.dataView, offset);
+            offset += elementId.width;
+            elementWidth = VINT.read(this.dataView, offset);
+            offset += elementWidth.width;
+
+
+            if (elementId.raw === Element.IdTable.TrackEntry) {
+                count++;
+            }
+
+            offset += elementWidth.data;
+            if (offset > end)
+                console.warn("invalid track format");
+
+        }
+
+        if (count < 0) {
+            return;//done
+        }
+        
+        this.trackEntries = [];//new array(count);
+        //this.trackEntriesEnd = this.trackEntries;
+
+
+        offset = this.dataOffset;
+        var payloadEnd;
+        var elementTotalSize;
+        while (offset < end) {
+            //5571
+            elementOffset = offset;
+            elementId = VINT.read(this.dataView, offset);
+            offset += elementId.width;
+            elementWidth = VINT.read(this.dataView, offset);
+            offset += elementWidth.width;
+
+            payloadEnd = offset + elementWidth.data;
+            elementTotalSize = payloadEnd - elementOffset;
+
+            if (elementId.raw === Element.IdTable.TrackEntry) {
+
+                this.trackEntries.push(this.ParseTrackEntry(offset, elementWidth.data));
+
+            }
+            offset += elementWidth.data;
+        }
+    }
+    
+    ParseTrackEntry(dataOffset, size){
+        var trackEntry = new Track();
+        var trackInfo = new TrackInfo();
+        var trackSettings = new TrackSettings();
+        var lacing = 1;
+
+        
+        var end = dataOffset + size;
+        var offset = dataOffset;
+        var elementId;
+        var elementWidth;
+        var elementOffset;
+        while (offset < end) {
+            //5621
+            elementOffset = offset;
+            elementId = VINT.read(this.dataView, offset);
+            offset += elementId.width;
+            elementWidth = VINT.read(this.dataView, offset);
+            offset += elementWidth.width;
+
+
+            switch(elementId.raw){
+                case Element.IdTable.Video :
+                    trackSettings.offset = elementOffset;
+                    trackSettings.dataOffset = offset;
+                    trackSettings.size = elementWidth.data;
+                    break;
+                case Element.IdTable.Audio :
+                    trackSettings.offset = elementOffset;
+                    trackSettings.dataOffset = offset;
+                    trackSettings.size = elementWidth.data;
+                    break;
+                case Element.IdTable.ContentEncodings :
+                    trackSettings.offset = elementOffset;
+                    trackSettings.dataOffset = offset;
+                    trackSettings.size = elementWidth.data;
+                    break;
+                case Element.IdTable.TrackUID :
+                    break;
+                case Element.IdTable.TrackNumber :
+                    trackInfo.number = Element.readUnsignedInt(this.dataView,offset, elementWidth.data);
+                    break;
+                case Element.IdTable.TrackType :
+                    break;
+                case Element.IdTable.Name :
+                    break;
+                case Element.IdTable.Language :
+                    break;
+                case Element.IdTable.DefaultDuration :
+                    break;
+                case Element.IdTable.FlagLacing :
+                    break;
+                case Element.IdTable.CodecPrivate :
+                    break;
+                case Element.IdTable.CodecName :
+                    break;
+                case Element.IdTable.CodecDelay :
+                    break;
+                case Element.IdTable.CodecSeekPreRoll :
+                    break;
+                default:
+                    console.warn("track type not found");
+                    break;
+            }
+            
+            
+            offset += elementWidth.data;
+        }
+        
+        console.log(trackInfo);
+        return trackEntry;
+        
+    }
+
+}
+
+class Track{
+    constructor(){
+        
+    }
+}
+
+class TrackInfo{
+    constructor(){
+        this.type = 0;
+        this.number = 0;
+        this.uid = 0;
+        this.defaultDuration = 0;
+       
+    }
+}
+
+class TrackSettings{
+    constructor(){
+        this.start = -1;
+        this.size = -1;
+    }
+}
+
+
 class SegmentInfo {
     
     constructor(dataView) {
@@ -170,7 +344,7 @@ class SegmentInfo {
     parse(){
         console.log("parsing segment info");
         var end = this.dataOffset + this.size;
-        var offset = this.dataOffset
+        var offset = this.dataOffset;
         
         var elementId;
         var elementWidth;
@@ -770,203 +944,12 @@ class EBMLBinary extends Element {
 
 }
 
-class EBML extends EBMLMasterElement {
-
-    constructor(dataView) {
-        super(Element.IdTable.EBML, dataView);
-        this.EBMLClass = 'D';
-
-    }
-
-}
 
 
 
 
 
 
-class EBMLVersion extends EBMLUnsignedInteger {
-
-    constructor(dataView) {
-        super(Element.IdTable.EBMLVersion, dataView);
-        this.EBMLClass = 'B';
-    }
-
-}
-
-class EBMLReadVersion extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.EBMLReadVersion, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class EBMLMaxIDLength extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.EBMLMaxIDLength, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class EBMLMaxSizeLength extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.EBMLMaxSizeLength, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class DocType extends EBMLString {
-    constructor(dataView) {
-        super(Element.IdTable.DocType, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class DocTypeVersion extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.DocTypeVersion, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class DocTypeReadVersion extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.DocTypeReadVersion, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class Void extends EBMLBinary {
-    constructor(dataView) {
-        super(Element.IdTable.Void, dataView);
-        this.EBMLClass = 'A';
-    }
-}
-
-class Segment extends EBMLMasterElement {
-
-    constructor(dataView) {
-
-        super(Element.IdTable.Segment, dataView);
-        this.EBMLClass = 'D';
-
-    }
-
-}
-
-class SeekHead extends EBMLMasterElement {
-    constructor(dataView) {
-        super(Element.IdTable.SeekHead, dataView);
-        this.EBMLClass = 'D';
-    }
-}
-
-class Seek extends EBMLMasterElement {
-    constructor(dataView) {
-        super(Element.IdTable.Seek, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class SeekID extends EBMLBinary {
-    constructor(dataView) {
-        super(Element.IdTable.SeekID, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class SeekPosition extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.SeekPosition, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class Info extends EBMLMasterElement {
-    constructor(dataView) {
-        super(Element.IdTable.Info, dataView);
-        this.EBMLClass = 'D';
-
-    }
-}
-
-class TimecodeScale extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.TimecodeScale, dataView);
-        this.EBMLClass = 'C';
-    }
-}
-
-class Duration extends EBMLFloat {
-    constructor(dataView) {
-        super(Element.IdTable.Duration, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class DateUTC extends EBMLDate {
-    constructor(dataView) {
-        super(Element.IdTable.DateUTC, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class Title extends EBMLUTF8 {
-    constructor(dataView) {
-        super(Element.IdTable.Title, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class MuxingApp extends EBMLUTF8 {
-    constructor(dataView) {
-        super(Element.IdTable.MuxingApp, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class WritingApp extends EBMLUTF8 {
-    constructor(dataView) {
-        super(Element.IdTable.WritingApp, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class Cluster extends EBMLMasterElement {
-    constructor(dataView) {
-        super(Element.IdTable.Cluster, dataView);
-        this.EBMLClass = 'D';
-
-    }
-}
-
-class Timecode extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.Timecode, dataView);
-        this.EBMLClass = 'A';
-    }
-}
-
-class PrevSize extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.PrevSize, dataView);
-        this.EBMLClass = 'A';
-    }
-}
-
-class SimpleBlock extends EBMLBinary {
-    constructor(dataView) {
-        super(Element.IdTable.SimpleBlock, dataView);
-        this.EBMLClass = 'A';
-    }
-}
-
-class BlockGroup extends EBMLMasterElement {
-    constructor(dataView) {
-        super(Element.IdTable.BlockGroup, dataView);
-        this.EBMLClass = 'A';
-    }
-}
 
 class Frame {
 
@@ -1027,595 +1010,6 @@ class Block extends EBMLBinary {
 
     }
 
-}
-
-
-class BlockAdditions extends EBMLMasterElement {
-    constructor(dataView) {
-        super(Element.IdTable.BlockAdditions, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class BlockMore extends EBMLMasterElement {
-    constructor(dataView) {
-        super(Element.IdTable.BlockMore, dataView);
-        this.EBMLClass = 'A';
-    }
-}
-
-class BlockAddID extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.BlockAddID, dataView);
-        this.EBMLClass = 'A';
-    }
-}
-
-class BlockAdditional extends EBMLBinary {
-    constructor(dataView) {
-        super(Element.IdTable.BlockAdditional, dataView);
-        this.EBMLClass = 'A';
-    }
-}
-
-class BlockDuration extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.BlockDuration, dataView);
-        this.EBMLClass = 'A';
-    }
-}
-
-class ReferenceBlock extends EBMLSignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.ReferenceBlock, dataView);
-        this.EBMLClass = 'A';
-    }
-}
-
-class DiscardPadding extends EBMLSignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.DiscardPadding, dataView);
-        this.EBMLClass = 'A';
-    }
-}
-
-class Tracks extends EBMLMasterElement {
-    constructor(dataView) {
-        super(Element.IdTable.Tracks, dataView);
-        this.EBMLClass = 'D';
-    }
-}
-
-class TrackEntry extends EBMLMasterElement {
-    constructor(dataView) {
-        super(Element.IdTable.TrackEntry, dataView);
-        this.EBMLClass = 'A';
-    }
-}
-
-class TrackNumber extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.TrackNumber, dataView);
-        this.EBMLClass = 'A';
-    }
-}
-
-class TrackUID extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.TrackUID, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class TrackType extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.TrackType, dataView);
-        this.EBMLClass = 'A';
-    }
-}
-
-class FlagEnabled extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.FlagEnabled, dataView);
-        this.EBMLClass = 'A';
-    }
-}
-
-class FlagDefault extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.FlagDefault, dataView);
-        this.EBMLClass = 'A';
-    }
-}
-
-class FlagForced extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.FlagForced, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class FlagLacing extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.FlagForced, dataView);
-        this.EBMLClass = 'A';
-    }
-}
-
-class DefaultDuration extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.DefaultDuration, dataView);
-        this.EBMLClass = 'C';
-    }
-}
-
-class Name extends EBMLUTF8 {
-    constructor(dataView) {
-        super(Element.IdTable.Name, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class Language extends EBMLString {
-    constructor(dataView) {
-        super(Element.IdTable.Language, dataView);
-        this.EBMLClass = 'C';
-    }
-}
-
-class CodecID extends EBMLString {
-    constructor(dataView) {
-        super(Element.IdTable.CodecID, dataView);
-        this.EBMLClass = 'A';
-    }
-}
-
-class CodecPrivate extends EBMLString {
-    constructor(dataView) {
-        super(Element.IdTable.CodecPrivate, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class CodecName extends EBMLUTF8 {
-    constructor(dataView) {
-        super(Element.IdTable.CodecName, dataView);
-        this.EBMLClass = 'C';
-    }
-}
-
-class CodecDelay extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.CodecDelay, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class SeekPreRoll extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.SeekPreRoll, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class Video extends EBMLMasterElement {
-    constructor(dataView) {
-        super(Element.IdTable.Video, dataView);
-        this.EBMLClass = 'A';
-    }
-}
-
-class FlagInterlaced extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.FlagInterlaced, dataView);
-        this.EBMLClass = 'A';
-    }
-}
-
-class StereoMode extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.StereoMode, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class AlphaMode extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.AlphaMode, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class PixelWidth extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.PixelWidth, dataView);
-        this.EBMLClass = 'A';
-    }
-}
-
-class PixelHeight extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.PixelHeight, dataView);
-        this.EBMLClass = 'A';
-    }
-}
-
-class PixelCropBottom extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.PixelCropBottom, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class PixelCropTop extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.PixelCropTop, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class PixelCropLeft extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.PixelCropLeft, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class PixelCropRight extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.PixelCropRight, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class DisplayWidth extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.DisplayWidth, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class DisplayHeight extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.DisplayHeight, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class DisplayUnit extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.DisplayUnit, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class AspectRatioType extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.AspectRatioType, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class Audio extends EBMLMasterElement {
-    constructor(dataView) {
-        super(Element.IdTable.Audio, dataView);
-        this.EBMLClass = 'A';
-    }
-}
-
-class SamplingFrequency extends EBMLFloat {
-    constructor(dataView) {
-        super(Element.IdTable.SamplingFrequency, dataView);
-        this.EBMLClass = 'A';
-    }
-}
-
-class OutputSamplingFrequency extends EBMLFloat {
-    constructor(dataView) {
-        super(Element.IdTable.OutputSamplingFrequency, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class Channels extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.Channels, dataView);
-        this.EBMLClass = 'A';
-    }
-}
-
-class BitDepth extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.BitDepth, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class ContentEncodings extends EBMLMasterElement {
-    constructor(dataView) {
-        super(Element.IdTable.ContentEncodings, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class ContentEncoding extends EBMLMasterElement {
-    constructor(dataView) {
-        super(Element.IdTable.ContentEncoding, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class ContentEncodingOrder extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.ContentEncodingOrder, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class FrameRate extends EBMLSignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.FrameRate, dataView);
-        this.EBMLClass = 'C';
-    }
-}
-
-class ContentEncodingScope extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.ContentEncodingScope, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class ContentEncodingType extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.ContentEncodingType, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class ContentEncryption extends EBMLMasterElement {
-    constructor(dataView) {
-        super(Element.IdTable.ContentEncryption, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class ContentEncAlgo extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.ContentEncAlgo, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class ContentEncKeyID extends EBMLBinary {
-    constructor(dataView) {
-        super(Element.IdTable.ContentEncKeyID, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class Cues extends EBMLMasterElement {
-    constructor(dataView) {
-        super(Element.IdTable.Cues, dataView);
-        this.EBMLClass = 'D';
-    }
-}
-
-class CuePoint extends EBMLMasterElement {
-    constructor(dataView) {
-        super(Element.IdTable.CuePoint, dataView);
-        this.EBMLClass = 'A';
-    }
-}
-
-class CueTime extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.CueTime, dataView);
-        this.EBMLClass = 'A';
-    }
-}
-
-class CueTrackPositions extends EBMLMasterElement {
-    constructor(dataView) {
-        super(Element.IdTable.CueTrackPositions, dataView);
-        this.EBMLClass = 'A';
-    }
-}
-
-class CueTrack extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.CueTrack, dataView);
-        this.EBMLClass = 'A';
-    }
-}
-
-class CueClusterPosition extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.CueClusterPosition, dataView);
-        this.EBMLClass = 'A';
-    }
-}
-
-class CueRelativePosition extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.CueRelativePosition, dataView);
-        this.EBMLClass = 'A';
-    }
-}
-
-class CueDuration extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.CueDuration, dataView);
-        this.EBMLClass = 'A';
-    }
-}
-
-class CueBlockNumber extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.CueBlockNumber, dataView);
-        this.EBMLClass = 'AB';
-    }
-}
-
-class Chapters extends EBMLMasterElement {
-    constructor(dataView) {
-        super(Element.IdTable.Chapters, dataView);
-        this.EBMLClass = 'D';
-    }
-}
-
-class EditionEntry extends EBMLMasterElement {
-    constructor(dataView) {
-        super(Element.IdTable.EditionEntry, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class ChapterAtom extends EBMLMasterElement {
-    constructor(dataView) {
-        super(Element.IdTable.ChapterAtom, dataView);
-        this.EBMLClass = 'A';
-    }
-}
-
-class ChapterUID extends EBMLUTF8 {
-    constructor(dataView) {
-        super(Element.IdTable.ChapterUID, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class ChapterStringUID extends EBMLUTF8 {
-    constructor(dataView) {
-        super(Element.IdTable.ChapterStringUID, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class ChapterTimeStart extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.ChapterTimeStart, dataView);
-        this.EBMLClass = 'A';
-    }
-}
-
-class ChapterTimeEnd extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.ChapterTimeEnd, dataView);
-        this.EBMLClass = 'A';
-    }
-}
-
-class ChapterDisplay extends EBMLMasterElement {
-    constructor(dataView) {
-        super(Element.IdTable.ChapterDisplay, dataView);
-        this.EBMLClass = 'A';
-    }
-}
-
-class ChapString extends EBMLUTF8 {
-    constructor(dataView) {
-        super(Element.IdTable.ChapString, dataView);
-        this.EBMLClass = 'A';
-    }
-}
-
-class ChapLanguage extends EBMLString {
-    constructor(dataView) {
-        super(Element.IdTable.ChapLanguage, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class ChapCountry extends EBMLString {
-    constructor(dataView) {
-        super(Element.IdTable.ChapCountry, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class Tags extends EBMLMasterElement {
-    constructor(dataView) {
-        super(Element.IdTable.Tags, dataView);
-        this.EBMLClass = 'D';
-    }
-}
-
-class Tag extends EBMLMasterElement {
-    constructor(dataView) {
-        super(Element.IdTable.Tag, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class Targets extends EBMLMasterElement {
-    constructor(dataView) {
-        super(Element.IdTable.Targets, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class TargetTypeValue extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.TargetTypeValue, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class TargetType extends EBMLString {
-    constructor(dataView) {
-        super(Element.IdTable.TargetType, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class TagTrackUID extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.TagTrackUID, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class SimpleTag extends EBMLMasterElement {
-    constructor(dataView) {
-        super(Element.IdTable.SimpleTag, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class TagName extends EBMLUTF8 {
-    constructor(dataView) {
-        super(Element.IdTable.TagName, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class TagLanguage extends EBMLString {
-    constructor(dataView) {
-        super(Element.IdTable.TagLanguage, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class TagDefault extends EBMLUnsignedInteger {
-    constructor(dataView) {
-        super(Element.IdTable.TagDefault, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class TagString extends EBMLUTF8 {
-    constructor(dataView) {
-        super(Element.IdTable.TagString, dataView);
-        this.EBMLClass = 'B';
-    }
-}
-
-class TagBinary extends EBMLUTF8 {
-    constructor(dataView) {
-        super(Element.IdTable.TagBinary, dataView);
-        this.EBMLClass = 'B';
-    }
 }
 
 
@@ -1771,138 +1165,7 @@ Element.IdTable = {
     TagBinary: 0x4485
 };
 
-//Create lookup element to find classes
-Element.ClassTable = {};
-//Basics
-Element.ClassTable[Element.IdTable.EBML] = EBML;
-Element.ClassTable[Element.IdTable.EBMLVersion] = EBMLVersion;
-Element.ClassTable[Element.IdTable.EBMLReadVersion] = EBMLReadVersion;
-Element.ClassTable[Element.IdTable.EBMLMaxIDLength] = EBMLMaxIDLength;
-Element.ClassTable[Element.IdTable.EBMLMaxSizeLength] = EBMLMaxSizeLength;
-Element.ClassTable[Element.IdTable.DocType] = DocType;
-Element.ClassTable[Element.IdTable.DocTypeVersion] = DocTypeVersion;
-Element.ClassTable[Element.IdTable.DocTypeReadVersion] = DocTypeReadVersion;
-//Global
-Element.ClassTable[Element.IdTable.Void] = Void;
-//Segment
-Element.ClassTable[Element.IdTable.Segment] = Segment;
-//Meta Seek
-Element.ClassTable[Element.IdTable.SeekHead] = SeekHead;
-Element.ClassTable[Element.IdTable.Seek] = Seek;
-Element.ClassTable[Element.IdTable.SeekID] = SeekID;
-Element.ClassTable[Element.IdTable.SeekPosition] = SeekPosition;
-//Segment
-Element.ClassTable[Element.IdTable.Info] = Info;
-Element.ClassTable[Element.IdTable.TimecodeScale] = TimecodeScale;
-Element.ClassTable[Element.IdTable.Duration] = Duration;
-Element.ClassTable[Element.IdTable.DateUTC] = DateUTC;
-Element.ClassTable[Element.IdTable.Title] = Title;
-Element.ClassTable[Element.IdTable.MuxingApp] = MuxingApp;
-Element.ClassTable[Element.IdTable.WritingApp] = WritingApp;
-//Cluster
-Element.ClassTable[Element.IdTable.Cluster] = Cluster;
-Element.ClassTable[Element.IdTable.Timecode] = Timecode;
-Element.ClassTable[Element.IdTable.PrevSize] = PrevSize;
-Element.ClassTable[Element.IdTable.SimpleBlock] = SimpleBlock;
-Element.ClassTable[Element.IdTable.BlockGroup] = BlockGroup;
-Element.ClassTable[Element.IdTable.Block] = Block;
-Element.ClassTable[Element.IdTable.BlockAdditions] = BlockAdditions;
-Element.ClassTable[Element.IdTable.BlockMore] = BlockMore;
-Element.ClassTable[Element.IdTable.BlockAddID] = BlockAddID;
-Element.ClassTable[Element.IdTable.BlockAdditional] = BlockAdditional;
-Element.ClassTable[Element.IdTable.BlockDuration] = BlockDuration;
-Element.ClassTable[Element.IdTable.ReferenceBlock] = ReferenceBlock;
-Element.ClassTable[Element.IdTable.DiscardPadding] = DiscardPadding;
-//Tracks
-Element.ClassTable[Element.IdTable.Tracks] = Tracks;
-Element.ClassTable[Element.IdTable.TrackEntry] = TrackEntry;
-Element.ClassTable[Element.IdTable.TrackNumber] = TrackNumber;
-Element.ClassTable[Element.IdTable.TrackUID] = TrackUID;
-Element.ClassTable[Element.IdTable.TrackType] = TrackType;
-Element.ClassTable[Element.IdTable.FlagEnabled] = FlagEnabled;
-Element.ClassTable[Element.IdTable.FlagDefault] = FlagDefault;
-Element.ClassTable[Element.IdTable.FlagForced] = FlagForced;
-Element.ClassTable[Element.IdTable.FlagDefault] = FlagDefault;
-Element.ClassTable[Element.IdTable.FlagLacing] = FlagLacing;
-Element.ClassTable[Element.IdTable.DefaultDuration] = DefaultDuration;
-Element.ClassTable[Element.IdTable.Name] = Name;
-Element.ClassTable[Element.IdTable.Language] = Language;
-Element.ClassTable[Element.IdTable.CodecID] = CodecID;
-Element.ClassTable[Element.IdTable.CodecPrivate] = CodecPrivate;
-Element.ClassTable[Element.IdTable.CodecName] = CodecName;
-Element.ClassTable[Element.IdTable.CodecDelay] = CodecDelay;
-Element.ClassTable[Element.IdTable.SeekPreRoll] = SeekPreRoll;
-Element.ClassTable[Element.IdTable.Video] = Video;
-Element.ClassTable[Element.IdTable.FlagInterlaced] = FlagInterlaced;
-Element.ClassTable[Element.IdTable.StereoMode] = StereoMode;
-Element.ClassTable[Element.IdTable.AlphaMode] = AlphaMode;
-Element.ClassTable[Element.IdTable.PixelWidth] = PixelWidth;
-Element.ClassTable[Element.IdTable.PixelHeight] = PixelHeight;
-Element.ClassTable[Element.IdTable.PixelCropBottom] = PixelCropBottom;
-Element.ClassTable[Element.IdTable.PixelCropTop] = PixelCropTop;
-Element.ClassTable[Element.IdTable.PixelCropLeft] = PixelCropLeft;
-Element.ClassTable[Element.IdTable.PixelCropRight] = PixelCropRight;
-Element.ClassTable[Element.IdTable.DisplayWidth] = DisplayWidth;
-Element.ClassTable[Element.IdTable.DisplayHeight] = DisplayHeight;
-Element.ClassTable[Element.IdTable.DisplayUnit] = DisplayUnit;
-Element.ClassTable[Element.IdTable.AspectRatioType] = AspectRatioType;
-Element.ClassTable[Element.IdTable.Audio] = Audio;
-Element.ClassTable[Element.IdTable.SamplingFrequency] = SamplingFrequency;
-Element.ClassTable[Element.IdTable.OutputSamplingFrequency] = OutputSamplingFrequency;
-Element.ClassTable[Element.IdTable.Channels] = Channels;
-Element.ClassTable[Element.IdTable.BitDepth] = BitDepth;
-Element.ClassTable[Element.IdTable.ContentEncodings] = ContentEncodings;
-Element.ClassTable[Element.IdTable.ContentEncoding] = ContentEncoding;
-Element.ClassTable[Element.IdTable.ContentEncodingOrder] = ContentEncodingOrder;
-Element.ClassTable[Element.IdTable.ContentEncodingScope] = ContentEncodingScope;
-Element.ClassTable[Element.IdTable.ContentEncodingType] = ContentEncodingType;
-Element.ClassTable[Element.IdTable.ContentEncryption] = ContentEncryption;
-Element.ClassTable[Element.IdTable.ContentEncAlgo] = ContentEncAlgo;
-Element.ClassTable[Element.IdTable.ContentEncKeyID] = ContentEncKeyID;
-Element.ClassTable[Element.IdTable.FrameRate] = FrameRate;
-//Cueing Data
-Element.ClassTable[Element.IdTable.Cues] = Cues;
-Element.ClassTable[Element.IdTable.CuePoint] = CuePoint;
-Element.ClassTable[Element.IdTable.CueTime] = CueTime;
-Element.ClassTable[Element.IdTable.CueTrackPositions] = CueTrackPositions;
-Element.ClassTable[Element.IdTable.CueTrack] = CueTrack;
-Element.ClassTable[Element.IdTable.CueClusterPosition] = CueClusterPosition;
-Element.ClassTable[Element.IdTable.CueRelativePosition] = CueRelativePosition;
-Element.ClassTable[Element.IdTable.CueDuration] = CueDuration;
-Element.ClassTable[Element.IdTable.CueBlockNumber] = CueBlockNumber;
-//Chapters
-Element.ClassTable[Element.IdTable.Chapters] = Chapters;
-Element.ClassTable[Element.IdTable.EditionEntry] = EditionEntry;
-Element.ClassTable[Element.IdTable.ChapterAtom] = ChapterAtom;
-Element.ClassTable[Element.IdTable.ChapterUID] = ChapterUID;
-Element.ClassTable[Element.IdTable.ChapterStringUID] = ChapterStringUID;
-Element.ClassTable[Element.IdTable.ChapterTimeStart] = ChapterTimeStart;
-Element.ClassTable[Element.IdTable.ChapterTimeEnd] = ChapterTimeEnd;
-Element.ClassTable[Element.IdTable.ChapterDisplay] = ChapterDisplay;
-Element.ClassTable[Element.IdTable.ChapString] = ChapString;
-Element.ClassTable[Element.IdTable.ChapLanguage] = ChapLanguage;
-Element.ClassTable[Element.IdTable.ChapCountry] = ChapCountry;
-//Tagging
-Element.ClassTable[Element.IdTable.Tags] = Tags;
-Element.ClassTable[Element.IdTable.Tag] = Tag;
-Element.ClassTable[Element.IdTable.Targets] = Targets;
-Element.ClassTable[Element.IdTable.TargetTypeValue] = TargetTypeValue;
-Element.ClassTable[Element.IdTable.TargetType] = TargetType;
-Element.ClassTable[Element.IdTable.TagTrackUID] = TagTrackUID;
-Element.ClassTable[Element.IdTable.SimpleTag] = SimpleTag;
-Element.ClassTable[Element.IdTable.TagName] = TagName;
-Element.ClassTable[Element.IdTable.TagLanguage] = TagLanguage;
-Element.ClassTable[Element.IdTable.TagDefault] = TagDefault;
-Element.ClassTable[Element.IdTable.TagString] = TagString;
-Element.ClassTable[Element.IdTable.TagBinary] = TagBinary;
 
-MasterSegment.ElementTable = {};
-MasterSegment.ElementTable[Element.IdTable.Info] = SegmentInfo;
-//MasterSegment.ElementTable[Element.IdTable.Tracks] = true;
-//MasterSegment.ElementTable[Element.IdTable.Cues] = true;
-//MasterSegment.ElementTable[Element.IdTable.SeekHead] = true;
-//MasterSegment.ElementTable[Element.IdTable.Chapters] = true;
-//MasterSegment.ElementTable[Element.IdTable.Tags] = true;
 
 
 

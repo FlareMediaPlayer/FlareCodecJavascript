@@ -355,6 +355,7 @@ module.exports = Object.freeze({
 var VINT = require('./VINT.js');
 var VP9 = require('./codecs/VP9/common/common-data.js');
 
+
 class FlareCodec {
 
     constructor() {
@@ -367,6 +368,122 @@ class FlareCodec {
     }
 
 }
+
+class MasterSegment{
+    
+    constructor(dataView){
+        this.dataView = dataView;
+        this.offset;
+        this.dataOffset;
+        this.size;
+        this.seekHead;
+        this.info;
+        this.tracks;
+        this.cues;
+        this.clusters;
+        this.clusterCount = 0;
+        this.clusterPreloadCount = 0;
+        this.clusterSize = 0;
+    }
+    
+    static CreateInstance(dataView, offset){
+        if (offset < 0){
+            console.warn("invalid position");
+        }
+        
+        //does not handle unknown size yet
+        var elementId = VINT.read(dataView, offset);
+        
+        if(elementId.raw === Element.IdTable.Segment){
+            console.log("segment found");
+            var segment = new MasterSegment(dataView);
+            segment.offset = offset;
+            offset += elementId.width;
+            var elementSize = VINT.read(dataView, offset);
+            segment.size = elementSize.data;
+            offset+= elementSize.data;
+            segment.dataOffset = offset;
+            return segment;
+        }
+        
+
+        
+    }
+    
+    loadCluster(){
+        
+    }
+    
+    doLoadCluster(){
+        
+    }
+    
+    appendCluster(){
+        
+    }
+    
+    preloadCluster(){
+        
+    }
+    
+    parseTopLevel() {
+
+        var offset = this.dataOffset;
+        var end = this.offset + this.size;
+        var elementId;
+        var elementWidth;
+        var elementOffset;
+        while (offset < end) {
+            
+            elementOffset = offset;
+            elementId = VINT.read(this.dataView, offset);
+            
+            if(MasterSegment.ElementTable[elementId.raw]){
+                console.log("element found");
+            }else{
+                console.log("not found");
+            }
+            
+            offset += elementId.width;
+            elementWidth = VINT.read(this.dataView, offset);
+            offset += elementWidth.width;
+
+
+            offset += elementWidth.data;
+        }
+
+
+    }
+    
+    load(){
+   // Outermost (level 0) segment object has been constructed,
+  // and pos designates start of payload.  We need to find the
+  // inner (level 1) elements.
+/*
+  const long long header_status = ParseHeaders();
+
+  if (header_status < 0)  // error
+ 
+  if (header_status > 0)  // underflow
+ 
+  if (m_pInfo == NULL || m_pTracks == NULL)
+    return E_FILE_FORMAT_INVALID;
+
+  for (;;) {
+    const long status = LoadCluster();
+
+    if (status < 0)  // error
+      return status;
+
+    if (status >= 1)  // no more clusters
+      return 0;
+  }
+        */
+    }
+}
+
+
+
 
 class EBMLHeader{
     
@@ -399,37 +516,7 @@ class EBMLHeader{
         var elementSize = VINT.read(this._dataView, offset);
         this._totalSize = elementId.width + elementSize.width + elementSize.data;
         offset += elementSize.width;
-        /*
-        while (offset <  headerOffset + elementSize.data) {
-            
-            elementId = VINT.read(this._dataView, offset);
-            offset += elementId.width;
-            elementSize = VINT.read(this._dataView, offset);
-            offset += elementSize.width;
-            
-            if(elementId.data < 0 | elementSize.data < 0 | elementSize.data){
-                console.warn("invalid format");
-            }
-            
-        }
-        
-        //Lookup
-        var elementClass = Element.ClassTable[elementId.raw];
-        var element;
-        if (elementClass) {
-        
-            element = new elementClass(this._dataView);
-            element.setOffset(0);
-            element.setSize(elementSize);
-            element.parse();
-            this._totalSize = element.getTotalSize();
-            
-        } else {
-        
-            console.log("element not found");
-        
-        }
-            */
+    
         var element;
         var end = headerOffset + elementId.width + elementSize.width+ elementSize.data; //total header size
         while (offset <  end) {
@@ -508,6 +595,9 @@ class Webm {
 
         var bodyOffset = this.header.getTotalSize();
         var offset = bodyOffset;
+        this.body = MasterSegment.CreateInstance(this.dataview, offset);
+        this.body.load();
+        /*
         var elementId = VINT.read(this.dataview, offset);
         var elementClass = Element.ClassTable[elementId.raw];
         offset += elementId.width;
@@ -521,8 +611,10 @@ class Webm {
         } else {
             console.log("body");
         }
+                                        */
 
         console.log(this);
+                                        
 
 
     }
@@ -2040,6 +2132,14 @@ Element.ClassTable[Element.IdTable.TagLanguage] = TagLanguage;
 Element.ClassTable[Element.IdTable.TagDefault] = TagDefault;
 Element.ClassTable[Element.IdTable.TagString] = TagString;
 Element.ClassTable[Element.IdTable.TagBinary] = TagBinary;
+
+MasterSegment.ElementTable = {};
+MasterSegment.ElementTable[Element.IdTable.Info] = null;
+MasterSegment.ElementTable[Element.IdTable.Tracks] = null;
+MasterSegment.ElementTable[Element.IdTable.Cues] = null;
+MasterSegment.ElementTable[Element.IdTable.SeekHead] = null;
+MasterSegment.ElementTable[Element.IdTable.Chapters] = null;
+MasterSegment.ElementTable[Element.IdTable.Tags] = null;
 
 
 console.log(Element.IdTable);

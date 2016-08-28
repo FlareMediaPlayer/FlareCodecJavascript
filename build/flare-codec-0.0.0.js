@@ -428,7 +428,7 @@ class MasterSegment{
     parseTopLevel() {
         
         var offset = this.dataOffset;
-        var end = this.offset + this.size;
+        var end = offset + this.size;
         var elementId;
         var elementWidth;
         var elementOffset;
@@ -457,6 +457,33 @@ class MasterSegment{
                     this.tracks.size = elementWidth.data;
                     this.tracks.dataOffset = offset;
                     this.tracks.parse();
+                    break;
+                case Element.IdTable.Cues:
+                    this.cues = new Cues(this.dataView);
+                    this.cues.offset = elementOffset;
+                    this.cues.size = elementWidth.data;
+                    this.cues.dataOffset = offset;
+                    break;
+                case Element.IdTable.SeekHead:
+                    this.seekHead = new SeekHead(this.dataView);
+                    this.seekHead.offset = elementOffset;
+                    this.seekHead.size = elementWidth.data;
+                    this.seekHead.dataOffset = offset;
+                    this.seekHead.parse();
+                    break;
+                case Element.IdTable.Chapters:
+                    this.chapters = new Chapters(this.dataView);
+                    this.chapters.offset = elementOffset;
+                    this.chapters.size = elementWidth.data;
+                    this.chapters.dataOffset = offset;
+                    this.chapters.parse();
+                    break;
+                case Element.IdTable.Tags:
+                    this.tags = new Tags(this.dataView);
+                    this.tags.offset = elementOffset;
+                    this.tags.size = elementWidth.data;
+                    this.tags.dataOffset = offset;
+                    this.tags.parse();
                     break;
                 default:
                     console.warn("not found id = " + elementId.raw);
@@ -504,7 +531,148 @@ class MasterSegment{
     }
 }
 
+class SeekHead{
+    
+    constructor(dataView){
+        this.dataView = dataView;
+        this.offset;
+        this.dataOffset;
+        this.size;
+        this.entries = [];
+        this.entryCount = 0;
+        this.voidElements = [];
+        this.voidElementCount = 0;
+    }
+    
+    parse(){
+        //1495
+        console.log("parsing seek head");
+        this.entryCount = 0;
+        this.voidElementCount = 0;
+        var offset = this.dataOffset;
+        var end = this.dataOffset + this.size;
+        var elementId;
+        var elementWidth;
+        var elementOffset;
+        
+        while (offset < end) {
+            
+            //console.log(offset +","+ end);
+            elementOffset = offset;
+            elementId = VINT.read(this.dataView, offset);
+            offset += elementId.width;
+            elementWidth = VINT.read(this.dataView, offset);
+            offset += elementWidth.width;
+           
+           if(elementId.raw === Element.IdTable.Seek){
+               var entry = new Entry(this.dataView);
+               entry.dataOffset = offset;
+               entry.offset = elementOffset;
+               entry.size = elementWidth.data;
+               entry.parse();
+               this.entries.push(entry);
+           }else if (elementId.raw === Element.IdTable.Void){
+               
+           }
+
+            offset += elementWidth.data;
+            
+        }
+        this.entryCount = this.entries.length;
+        this.voidElementCount = this.voidElements.length;
+    }
+    
+}
+
+class Entry{
+    
+    constructor(dataView){
+        this.dataView = dataView;
+        this.offset;
+        this.dataOffset;
+        this.size;
+        this.id;
+        
+    }
+    
+    parse(){
+        //1732
+        //meeds to start with seek id
+        this.voidElementCount = 0;
+        var offset = this.dataOffset;
+        var end = this.dataOffset + this.size;
+        var elementId;
+        var elementWidth;
+        var elementOffset;
+        
+        elementOffset = offset;
+        elementId = VINT.read(this.dataView, offset);
+        if(elementId.raw != Element.IdTable.SeekID){
+            console.warn("Seek ID not found");
+        }
+        
+        offset += elementId.width;
+        elementWidth = VINT.read(this.dataView, offset);
+        offset += elementWidth.width;
+        this.id = Element.readUnsignedInt(this.dataView,offset, elementWidth.data);
+        offset += elementWidth.data;
+        
+        
+        elementId = VINT.read(this.dataView, offset);
+        if(elementId.raw != Element.IdTable.SeekPosition){
+            console.warn("Seek Position not found");
+        }
+        offset += elementId.width;
+        elementWidth = VINT.read(this.dataView, offset);
+        offset += elementWidth.width;
+        this.seekPosition = Element.readUnsignedInt(this.dataView,offset, elementWidth.data);
+        offset += elementWidth.data;
+
+    }
+    
+}
+
+class VoidElement{
+    
+}
+class Chapters{
+    
+    constructor(dataView){
+        this.dataView = dataView;
+        this.offset;
+        this.dataOffset;
+        this.size;
+        
+    }
+    
+    parse(){
+        console.log("parsing chapters");
+    }
+}
+
+class Tags{
+    constructor(dataView){
+        this.dataView = dataView;
+        this.offset;
+        this.dataOffset;
+        this.size;
+    }
+    
+    parse(){
+        console.log("parsing tags");
+    }
+}
+
+class Cues{
+    constructor(dataView){
+        this.dataView = dataView;
+        this.offset;
+        this.dataOffset;
+        this.size;
+    }
+}
 class Tracks{
+    
     constructor(dataView){
         this.dataView = dataView;
         this.segment;
@@ -578,9 +746,11 @@ class Tracks{
     }
     
     ParseTrackEntry(dataOffset, size){
-        var trackEntry = new Track();
+        var trackEntry;// = new Track();
         var trackInfo = new TrackInfo();
-        var trackSettings = new TrackSettings();
+        var videoSettings = new TrackSettings();
+        var audioSettings = new TrackSettings();
+        var encodingSettings = new TrackSettings();
         var lacing = 1;
 
         
@@ -589,6 +759,8 @@ class Tracks{
         var elementId;
         var elementWidth;
         var elementOffset;
+        var lacing;
+        
         while (offset < end) {
             //5621
             elementOffset = offset;
@@ -600,42 +772,57 @@ class Tracks{
 
             switch(elementId.raw){
                 case Element.IdTable.Video :
-                    trackSettings.offset = elementOffset;
-                    trackSettings.dataOffset = offset;
-                    trackSettings.size = elementWidth.data;
+                    videoSettings.offset = elementOffset;
+                    videoSettings.dataOffset = offset;
+                    videoSettings.size = elementWidth.data;
                     break;
                 case Element.IdTable.Audio :
-                    trackSettings.offset = elementOffset;
-                    trackSettings.dataOffset = offset;
-                    trackSettings.size = elementWidth.data;
+                    audioSettings.offset = elementOffset;
+                    audioSettings.dataOffset = offset;
+                    audioSettings.size = elementWidth.data;
                     break;
                 case Element.IdTable.ContentEncodings :
-                    trackSettings.offset = elementOffset;
-                    trackSettings.dataOffset = offset;
-                    trackSettings.size = elementWidth.data;
+                    encodingSettings.offset = elementOffset;
+                    encodingSettings.dataOffset = offset;
+                    encodingSettings.size = elementWidth.data;
                     break;
                 case Element.IdTable.TrackUID :
+                    //need to get uid
                     break;
                 case Element.IdTable.TrackNumber :
                     trackInfo.number = Element.readUnsignedInt(this.dataView,offset, elementWidth.data);
                     break;
                 case Element.IdTable.TrackType :
+                    trackInfo.type = Element.readUnsignedInt(this.dataView,offset, elementWidth.data);
                     break;
                 case Element.IdTable.Name :
+                    trackInfo.name = Element.readString(this.dataView,offset, elementWidth.data);
                     break;
                 case Element.IdTable.Language :
+                    trackInfo.language = Element.readString(this.dataView,offset, elementWidth.data);
                     break;
                 case Element.IdTable.DefaultDuration :
+                    trackInfo.defaultDuration = Element.readUnsignedInt(this.dataView,offset, elementWidth.data);
+                    break;
+                case Element.IdTable.CodecID :
+                    trackInfo.codecID = Element.readString(this.dataView,offset, elementWidth.data);
                     break;
                 case Element.IdTable.FlagLacing :
+                    lacing = Element.readUnsignedInt(this.dataView,offset, elementWidth.data);
+                    if ((lacing < 0) || (lacing > 1))
+                        console.warn("invalid lacing");
                     break;
                 case Element.IdTable.CodecPrivate :
+                    //need to fill binary
                     break;
                 case Element.IdTable.CodecName :
+                    trackInfo.codecName = Element.readString(this.dataView,offset, elementWidth.data);
                     break;
                 case Element.IdTable.CodecDelay :
+                    trackInfo.codecDelay = Element.readUnsignedInt(this.dataView,offset, elementWidth.data);
                     break;
-                case Element.IdTable.CodecSeekPreRoll :
+                case Element.IdTable.SeekPreRoll :
+                    trackInfo.seekPreRoll = Element.readUnsignedInt(this.dataView,offset, elementWidth.data);
                     break;
                 default:
                     console.warn("track type not found");
@@ -646,32 +833,145 @@ class Tracks{
             offset += elementWidth.data;
         }
         
-        console.log(trackInfo);
+        if (offset != end)
+            console.warn("invalid track");
+
+        if (trackInfo.number <= 0)  // not specified
+            console.warn("invalid track number");
+
+        //if (GetTrackByNumber(info.number)) //check if track exists
+        //return E_FILE_FORMAT_INVALID;
+
+        if (trackInfo.type <= 0)  // not specified
+            console.warn("invalid track type");
+
+        trackInfo.lacing = (lacing > 0) ? true : false;
+        
+        if(trackInfo.type === Track.Video){
+            if (videoSettings.offset < 0 || audioSettings.offset >= 0)
+                console.warn("invalid video settings");
+            trackInfo.settings = videoSettings;
+            trackEntry = new VideoTrack(this.dataView, trackInfo);
+            trackEntry.parse();
+            
+        }
+     
+        
+        //console.log(trackInfo);
         return trackEntry;
         
     }
 
 }
 
+
 class Track{
-    constructor(){
-        
+    constructor(dataView){
+        this.dataView = dataView;
+        this.offset;
+        this.dataOffset;
+        this.size;
     }
 }
 
+
+
+Track.Video = 1;
+Track.Audio = 2;
+
+class VideoTrack extends Track{
+    
+    constructor(dataView , info){
+        super(dataView);
+        this.width = 0;
+        this.height = 0;
+        this.displayWidth = 0;
+        this.displayHeight = 0;
+        this.displayUnit = 0;
+        this.stereoMode = 0;
+
+        this.rate = 0.0;
+        this.info = info;
+        this.settings = info.settings;
+        this.dataOffset = this.settings.dataOffset;
+        this.offset = this.settings.offset;
+        this.size = this.settings.size;
+        this.color;
+    }
+    
+    parse(){
+        //5197
+
+        var end = this.dataOffset + this.size;
+        var offset = this.dataOffset;
+        var elementId;
+        var elementWidth;
+        var elementOffset;
+
+        
+        while (offset < end) {
+            elementOffset = offset;
+            elementId = VINT.read(this.dataView, offset);
+            offset += elementId.width;
+            elementWidth = VINT.read(this.dataView, offset);
+            offset += elementWidth.width;
+
+
+            switch(elementId.raw){
+                case Element.IdTable.PixelWidth :
+                    this.width = Element.readUnsignedInt(this.dataView, offset, elementWidth.data);
+                    break;
+                case Element.IdTable.PixelHeight :
+                    this.height = Element.readUnsignedInt(this.dataView, offset, elementWidth.data);
+                    break;
+                case Element.IdTable.DisplayWidth :
+                    this.displayWidth = Element.readUnsignedInt(this.dataView, offset, elementWidth.data);
+                    break;
+                case Element.IdTable.DisplayHeight :
+                    this.displayHeight = Element.readUnsignedInt(this.dataView, offset, elementWidth.data);
+                    break;
+                case Element.IdTable.DisplayUnit :
+                    this.displayUnit = Element.readUnsignedInt(this.dataView, offset, elementWidth.data);
+                    break;
+                case Element.IdTable.StereoMode :
+                    this.stereoMode = Element.readUnsignedInt(this.dataView, offset, elementWidth.data);
+                    break;
+                case Element.IdTable.FrameRate :
+                    this.frameRate = Element.readUnsignedInt(this.dataView, offset, elementWidth.data);
+                    break;
+                case Element.IdTable.Colour:
+                    console.log("color");
+                    //this.frameRate = Element.readUnsignedInt(this.dataView, offset, elementWidth.data);
+                    break;
+                default:
+                    
+                    break;
+            }
+            
+            
+            offset += elementWidth.data;
+        }
+        
+        //console.log(this);
+    }
+    
+}
+
 class TrackInfo{
-    constructor(){
+    constructor() {
         this.type = 0;
         this.number = 0;
         this.uid = 0;
         this.defaultDuration = 0;
-       
+        this.language;
+        this.codecID;
+        this.codecName;
     }
 }
 
 class TrackSettings{
     constructor(){
-        this.start = -1;
+        this.offset = -1;
         this.size = -1;
     }
 }

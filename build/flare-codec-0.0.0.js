@@ -85,275 +85,153 @@ module.exports = VINT;
 },{}],2:[function(require,module,exports){
 'use strict';
 
-var ENUMS = require("./vp9-enums"); //Using same format as libvpx
-
-module.exports = Object.freeze({
-
-    b_width_log2_lookup: [0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4],
-
-    b_height_log2_lookup: [0, 1, 0, 1, 2, 1, 2, 3, 2, 3, 4, 3, 4],
-
-    num_4x4_blocks_wide_lookup: [1, 1, 2, 2, 2, 4, 4, 4, 8, 8, 8, 16, 16],
-
-    num_4x4_blocks_high_lookup: [1, 2, 1, 2, 4, 2, 4, 8, 4, 8, 16, 8, 16],
-
-    mi_width_log2_lookup: [0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3],
-
-    num_8x8_blocks_wide_lookup: [1, 1, 1, 1, 1, 2, 2, 2, 4, 4, 4, 8, 8],
-
-    num_8x8_blocks_high_lookup: [1, 1, 1, 1, 2, 1, 2, 4, 2, 4, 8, 4, 8],
-
-    size_group_lookup: [0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3],
-
-    num_pels_log2_lookup: [4, 5, 5, 6, 7, 7, 8, 9, 9, 10, 11, 11, 12],
-
-    /*ENUMS.PARTITION_TYPE*/
-    partition_lookup: [
-        [// 4X4
-            // 4X4, 4X8,8X4,8X8,8X16,16X8,16X16,16X32,32X16,32X32,32X64,64X32,64X64
-            ENUMS.PARTITION_NONE, ENUMS.PARTITION_INVALID, ENUMS.PARTITION_INVALID,
-            ENUMS.PARTITION_INVALID, ENUMS.PARTITION_INVALID, ENUMS.PARTITION_INVALID,
-            ENUMS.PARTITION_INVALID, ENUMS.PARTITION_INVALID, ENUMS.PARTITION_INVALID,
-            ENUMS.PARTITION_INVALID, ENUMS.PARTITION_INVALID, ENUMS.PARTITION_INVALID,
-            ENUMS.PARTITION_INVALID
-        ], [// 8X8
-            // 4X4, 4X8,8X4,8X8,8X16,16X8,16X16,16X32,32X16,32X32,32X64,64X32,64X64
-            ENUMS.PARTITION_SPLIT, ENUMS.PARTITION_VERT, ENUMS.PARTITION_HORZ, ENUMS.PARTITION_NONE,
-            ENUMS.PARTITION_INVALID, ENUMS.PARTITION_INVALID, ENUMS.PARTITION_INVALID,
-            ENUMS.PARTITION_INVALID, ENUMS.PARTITION_INVALID, ENUMS.PARTITION_INVALID,
-            ENUMS.PARTITION_INVALID, ENUMS.PARTITION_INVALID, ENUMS.PARTITION_INVALID
-        ], [// 16X16
-            // 4X4, 4X8,8X4,8X8,8X16,16X8,16X16,16X32,32X16,32X32,32X64,64X32,64X64
-            ENUMS.PARTITION_SPLIT, ENUMS.PARTITION_SPLIT, ENUMS.PARTITION_SPLIT, ENUMS.PARTITION_SPLIT,
-            ENUMS.PARTITION_VERT, ENUMS.PARTITION_HORZ, ENUMS.PARTITION_NONE, ENUMS.PARTITION_INVALID,
-            ENUMS.PARTITION_INVALID, ENUMS.PARTITION_INVALID, ENUMS.PARTITION_INVALID,
-            ENUMS.PARTITION_INVALID, ENUMS.PARTITION_INVALID
-        ], [// 32X32
-            // 4X4, 4X8,8X4,8X8,8X16,16X8,16X16,16X32,32X16,32X32,32X64,64X32,64X64
-            ENUMS.PARTITION_SPLIT, ENUMS.PARTITION_SPLIT, ENUMS.PARTITION_SPLIT, ENUMS.PARTITION_SPLIT,
-            ENUMS.PARTITION_SPLIT, ENUMS.PARTITION_SPLIT, ENUMS.PARTITION_SPLIT, ENUMS.PARTITION_VERT,
-            ENUMS.PARTITION_HORZ, ENUMS.PARTITION_NONE, ENUMS.PARTITION_INVALID,
-            ENUMS.PARTITION_INVALID, ENUMS.PARTITION_INVALID
-        ], [// 64X64
-            // 4X4, 4X8,8X4,8X8,8X16,16X8,16X16,16X32,32X16,32X32,32X64,64X32,64X64
-            ENUMS.PARTITION_SPLIT, ENUMS.PARTITION_SPLIT, ENUMS.PARTITION_SPLIT, ENUMS.PARTITION_SPLIT,
-            ENUMS.PARTITION_SPLIT, ENUMS.PARTITION_SPLIT, ENUMS.PARTITION_SPLIT, ENUMS.PARTITION_SPLIT,
-            ENUMS.PARTITION_SPLIT, ENUMS.PARTITION_SPLIT, ENUMS.PARTITION_VERT, ENUMS.PARTITION_HORZ,
-            ENUMS.PARTITION_NONE
-        ]
-    ],
-
-    subsize_lookup: [
-        [// ENUMS.PARTITION_NONE
-            ENUMS.BLOCK_4X4, ENUMS.BLOCK_4X8, ENUMS.BLOCK_8X4,
-            ENUMS.BLOCK_8X8, ENUMS.BLOCK_8X16, ENUMS.BLOCK_16X8,
-            ENUMS.BLOCK_16X16, ENUMS.BLOCK_16X32, ENUMS.BLOCK_32X16,
-            ENUMS.BLOCK_32X32, ENUMS.BLOCK_32X64, ENUMS.BLOCK_64X32,
-            ENUMS.BLOCK_64X64,
-        ], [// ENUMS.PARTITION_HORZ
-            ENUMS.BLOCK_INVALID, ENUMS.BLOCK_INVALID, ENUMS.BLOCK_INVALID,
-            ENUMS.BLOCK_8X4, ENUMS.BLOCK_INVALID, ENUMS.BLOCK_INVALID,
-            ENUMS.BLOCK_16X8, ENUMS.BLOCK_INVALID, ENUMS.BLOCK_INVALID,
-            ENUMS.BLOCK_32X16, ENUMS.BLOCK_INVALID, ENUMS.BLOCK_INVALID,
-            ENUMS.BLOCK_64X32,
-        ], [// ENUMS.PARTITION_VERT
-            ENUMS.BLOCK_INVALID, ENUMS.BLOCK_INVALID, ENUMS.BLOCK_INVALID,
-            ENUMS.BLOCK_4X8, ENUMS.BLOCK_INVALID, ENUMS.BLOCK_INVALID,
-            ENUMS.BLOCK_8X16, ENUMS.BLOCK_INVALID, ENUMS.BLOCK_INVALID,
-            ENUMS.BLOCK_16X32, ENUMS.BLOCK_INVALID, ENUMS.BLOCK_INVALID,
-            ENUMS.BLOCK_32X64,
-        ], [// ENUMS.PARTITION_SPLIT
-            ENUMS.BLOCK_INVALID, ENUMS.BLOCK_INVALID, ENUMS.BLOCK_INVALID,
-            ENUMS.BLOCK_4X4, ENUMS.BLOCK_INVALID, ENUMS.BLOCK_INVALID,
-            ENUMS.BLOCK_8X8, ENUMS.BLOCK_INVALID, ENUMS.BLOCK_INVALID,
-            ENUMS.BLOCK_16X16, ENUMS.BLOCK_INVALID, ENUMS.BLOCK_INVALID,
-            ENUMS.BLOCK_32X32,
-        ]
-    ],
-
-    max_txsize_lookup: [
-        ENUMS.TX_4X4, ENUMS.TX_4X4, ENUMS.TX_4X4,
-        ENUMS.TX_8X8, ENUMS.TX_8X8, ENUMS.TX_8X8,
-        ENUMS.TX_16X16, ENUMS.TX_16X16, ENUMS.TX_16X16,
-        ENUMS.TX_32X32, ENUMS.TX_32X32, ENUMS.TX_32X32, ENUMS.TX_32X32
-    ],
-
-    txsize_to_bsize: [
-        ENUMS.BLOCK_4X4, // ENUMS.TX_4X4
-        ENUMS.BLOCK_8X8, // ENUMS.TX_8X8
-        ENUMS.BLOCK_16X16, // ENUMS.TX_16X16
-        ENUMS.BLOCK_32X32, // ENUMS.TX_32X32
-    ],
-
-    tx_mode_to_biggest_tx_size: [
-        ENUMS.TX_4X4, // ONLY_4X4
-        ENUMS.TX_8X8, // ALLOW_8X8
-        ENUMS.TX_16X16, // ALLOW_16X16
-        ENUMS.TX_32X32, // ALLOW_32X32
-        ENUMS.TX_32X32, // ENUMS.TX_MODE_SELECT
-    ],
-
-    ss_size_lookup: [
-//  ss_x == 0    ss_x == 0        ss_x == 1      ss_x == 1
-//  ss_y == 0    ss_y == 1        ss_y == 0      ss_y == 1
-        [[ENUMS.BLOCK_4X4, ENUMS.BLOCK_INVALID], [ENUMS.BLOCK_INVALID, ENUMS.BLOCK_INVALID]],
-        [[ENUMS.BLOCK_4X8, ENUMS.BLOCK_4X4], [ENUMS.BLOCK_INVALID, ENUMS.BLOCK_INVALID]],
-        [[ENUMS.BLOCK_8X4, ENUMS.BLOCK_INVALID], [ENUMS.BLOCK_4X4, ENUMS.BLOCK_INVALID]],
-        [[ENUMS.BLOCK_8X8, ENUMS.BLOCK_8X4], [ENUMS.BLOCK_4X8, ENUMS.BLOCK_4X4]],
-        [[ENUMS.BLOCK_8X16, ENUMS.BLOCK_8X8], [ENUMS.BLOCK_INVALID, ENUMS.BLOCK_4X8]],
-        [[ENUMS.BLOCK_16X8, ENUMS.BLOCK_INVALID], [ENUMS.BLOCK_8X8, ENUMS.BLOCK_8X4]],
-        [[ENUMS.BLOCK_16X16, ENUMS.BLOCK_16X8], [ENUMS.BLOCK_8X16, ENUMS.BLOCK_8X8]],
-        [[ENUMS.BLOCK_16X32, ENUMS.BLOCK_16X16], [ENUMS.BLOCK_INVALID, ENUMS.BLOCK_8X16]],
-        [[ENUMS.BLOCK_32X16, ENUMS.BLOCK_INVALID], [ENUMS.BLOCK_16X16, ENUMS.BLOCK_16X8]],
-        [[ENUMS.BLOCK_32X32, ENUMS.BLOCK_32X16], [ENUMS.BLOCK_16X32, ENUMS.BLOCK_16X16]],
-        [[ENUMS.BLOCK_32X64, ENUMS.BLOCK_32X32], [ENUMS.BLOCK_INVALID, ENUMS.BLOCK_16X32]],
-        [[ENUMS.BLOCK_64X32, ENUMS.BLOCK_INVALID], [ENUMS.BLOCK_32X32, ENUMS.BLOCK_32X16]],
-        [[ENUMS.BLOCK_64X64, ENUMS.BLOCK_64X32], [ENUMS.BLOCK_32X64, ENUMS.BLOCK_32X32]],
-    ],
-
-// Generates 4 bit field in which each bit set to 1 represents
-// a blocksize partition  1111 means we split 64x64, 32x32, 16x16
-// and 8x8.  1000 means we just split the 64x64 to 32x32
-    partition_context_lookup:
-            [
-                {above: 15, left: 15},
-                {above: 15, left: 14},
-                {above: 14, left: 15},
-                {above: 14, left: 14},
-                {above: 14, left: 12},
-                {above: 12, left: 14},
-                {above: 12, left: 12},
-                {above: 12, left: 8},
-                {above: 8, left: 12},
-                {above: 8, left: 8},
-                {above: 8, left: 0},
-                {above: 0, left: 8},
-                {above: 0, left: 0}
-            ]
-
-});
-
-},{"./vp9-enums":3}],3:[function(require,module,exports){
-'use strict';
-module.exports = Object.freeze({
+var CONSTANTS = require('./constants.js');
+        
+class VP9{
+    constructor(){
+        
+    }
     
-    MI_SIZE_LOG2: 3,
-    MI_BLOCK_SIZE_LOG2: (6 - this.MI_SIZE_LOG2),
+    decode(dataView){
+        var frame = new Frame(dataView);
+        frame.decode();
+    }
+    
+    
+}
 
-    MI_SIZE: (1 << this.MI_SIZE_LOG2),
-    MI_BLOCK_SIZE: (1 << this.MI_BLOCK_SIZE_LOG2),
+class Frame{
+    //vp9_decode_frame
+    constructor(dataView){
+        this.dataView = dataView;
+        this.frameHeader;
+    }
+    
+    decode(){
+        var offset = 0;
+        this.frameHeader = new FrameHeader(this.dataView);
+        this.frameHeader.offset = 0;
+        this.frameHeader.parse();
+    }
+    
+    
+    
+    parseHeader(){
+        
+    }
+    
+}
 
-    MI_MASK: (this.MI_BLOCK_SIZE - 1),
+class FrameHeader{
+    constructor(dataView){
+        this.dataView = dataView;
+        this.offset;
+        this.frameMarker;
+        this.profileLowBit;
+        this.profileHighBit;
+        this.profile;
+    }
+    
+    parse(){
+        var offset = this.offset;
+        var tempByte= this.dataView.getUint8(offset);
+        offset++;
+        this.frameMarker = tempByte >> 6 ;
+        this.profileLowBit = (tempByte & 0x20) >> 5;
+        this.profileHighBit = (tempByte & 0x10) >> 4;
+        
+        this.profile = (this.profileHighBit << 1) + this.profileLowBit;
+        if (this.profile === 3){
+            //reserved 0
+        }
+        this.showExistingFrame = (tempByte >> 3) & 1;
+        this.frameType = (tempByte >> 2) & 1;
+        this.showFrame = (tempByte >> 1) & 1;
+        this.errorResilientMode = tempByte & 1;
+        if(this.frameType === CONSTANTS.KEY_FRAME){
+            
+            this.frameSyncCode(offset);
+            offset += 3;
+            this.colorConfig(offset);
+            offset++;
+            this.frameSize(offset);
+            this.renderSize(offset);
+            this.refresh_frame_flags = 0xFF;
+            this.frameIsIntra = 1;
 
-    PROFILE_0: 0,
-    PROFILE_1: 1,
-    PROFILE_2: 2,
-    PROFILE_3: 3,
-    MAX_PROFILES: 4,
+        }
+        console.log(this);
+    }
+    
+    frameSyncCode(offset){
+        this.frameSyncCode1 = this.dataView.getUint8(offset);
+        console.log(offset);
+        offset++;
+        this.frameSyncCode2 = this.dataView.getUint8(offset);
+        offset++;
+        console.log(offset);
+        this.frameSyncCode3 = this.dataView.getUint8(offset);
+    }
+    
+    frameSize(offset){
+        this.frameWidth = this.dataView.getUint16(offset) + 1;
+        offset += 2;
+        this.frameHeight = this.dataView.getUint16(offset) + 1;
+        this.computeImageSize();
+    }
+    
+    computeImageSize(){
+        this.miCols = (this.frameWidth + 7) >> 3;
+        this.miRows = (this.frameHeight + 7) >> 3;
+        this.sb64Cols = (this.miCols + 7) >> 3;
+        this.sb64Rows = (this.miRows + 7) >> 3;
+    }
+    
+    renderSize(offset){
+        
+    }
+    
+    colorConfig(offset){
+        var tempByte = this.dataView.getUint8(offset);
+        if (this.profile >= 2) {
+            this.tenOrTwelveBit = (tempByte >> 7) & 1;
+            this.bitDepth = this.tenOrTwelveBit ? 12 : 10
+        } else {
+            this.bitDepth = 8;
+        }
+        this.colorSpace = (tempByte >> 4) & 0x07;
+        if (this.colorSpace != CONSTANTS.CS_RGB) {
+            this.colorRange = (tempByte >> 3) & 0x1;
+            if (this.profile == 1 || this.profile == 3) {
+                this.subsamplingX = (tempByte >> 2) & 1;
+                this.subsamplingY = (tempByte >> 1) & 1;
 
-    BLOCK_4X4: 0,
-    BLOCK_4X8: 1,
-    BLOCK_8X4: 2,
-    BLOCK_8X8: 3,
-    BLOCK_8X16: 4,
-    BLOCK_16X8: 5,
-    BLOCK_16X16: 6,
-    BLOCK_16X32: 7,
-    BLOCK_32X16: 8,
-    BLOCK_32X32: 9,
-    BLOCK_32X64: 10,
-    BLOCK_64X32: 11,
-    BLOCK_64X64: 12,
-    BLOCK_SIZES: 13,
-    BLOCK_INVALID: this.BLOCK_SIZES,
-    //typedef uint8_t BLOCK_SIZE,
+            } else {
+                this.subsamplingX = 1;
+                this.subsamplingY = 1;
+            }
+        }else{
+            this.colorRange = 1;
+            if (this.profile == 1 || this.profile == 3) {
+                this.subsamplingX = 0;
+                this.subsamplingY = 0;
 
+            }
+        }
 
-    //typedef PARTITION_TYPE,
-    PARTITION_NONE: 0,
-    PARTITION_HORZ: 1,
-    PARTITION_VERT: 2,
-    PARTITION_SPLIT: 3,
-    PARTITION_TYPES: 4,
-    PARTITION_INVALID: this.PARTITION_TYPES,
-
-    //typedef char PARTITION_CONTEXT,
-
-    PARTITION_PLOFFSET: 4, // number of probability models per block size
-    PARTITION_CONTEXTS: 4 * this.PARTITION_PLOFFSET,
-
-    // block transform size
-    //typedef uint8_t TX_SIZE,
-    TX_4X4: 0, // 4x4 transform
-    TX_8X8: 1, // 8x8 transform
-    TX_16X16: 2, // 16x16 transform
-    TX_32X32: 3, // 32x32 transform
-    TX_SIZES: 4,
-
-    // frame transform mode
-    //typedef TX_MODE
-    ONLY_4X4: 0, // only 4x4 transform used
-    ALLOW_8X8: 1, // allow block transform size up to 8x8
-    ALLOW_16X16: 2, // allow block transform size up to 16x16
-    ALLOW_32X32: 3, // allow block transform size up to 32x32
-    TX_MODE_SELECT: 4, // transform specified for each block
-    TX_MODES: 5,
-
-    //typedef TX_TYPE
-
-    DCT_DCT: 0, // DCT  in both horizontal and vertical
-    ADST_DCT: 1, // ADST in vertical, DCT in horizontal
-    DCT_ADST: 2, // DCT  in vertical, ADST in horizontal
-    ADST_ADST: 3, // ADST in both directions
-    TX_TYPES: 4,
-
-    //typedef VP9_REFFRAME
-    VP9_LAST_FLAG: 1 << 0,
-    VP9_GOLD_FLAG: 1 << 1,
-    VP9_ALT_FLAG: 1 << 2,
-
-    //typedef PLANE_TYPE
-    PLANE_TYPE_Y: 0,
-    PLANE_TYPE_UV: 1,
-    PLANE_TYPES: 2,
-
-    DC_PRED: 0, // Average of above and left pixels
-    V_PRED: 1, // Vertical
-    H_PRED: 2, // Horizontal
-    D45_PRED: 3, // Directional 45  deg : round(arctan(1/1) * 180/pi)
-    D135_PRED: 4, // Directional 135 deg : 180 - 45
-    D117_PRED: 5, // Directional 117 deg : 180 - 63
-    D153_PRED: 6, // Directional 153 deg : 180 - 27
-    D207_PRED: 7, // Directional 207 deg : 180 + 27
-    D63_PRED: 8, // Directional 63  deg : round(arctan(2/1) * 180/pi)
-    TM_PRED: 9, // True-motion
-    NEARESTMV: 10,
-    NEARMV: 11,
-    ZEROMV: 12,
-    NEWMV: 13,
-    MB_MODE_COUNT: 14,
-    //typedef uint8_t PREDICTION_MODE,
-
-    INTRA_MODES: (this.TM_PRED + 1),
-
-    INTER_MODES: (1 + this.NEWMV - this.NEARESTMV),
-
-    SKIP_CONTEXTS: 3,
-    INTER_MODE_CONTEXTS: 7,
-
-    /* Segment Feature Masks */
-    MAX_MV_REF_CANDIDATES: 2,
-
-    INTRA_INTER_CONTEXTS: 4,
-    COMP_INTER_CONTEXTS: 5,
-    REF_CONTEXTS: 5
-
+    }
+}
+module.exports = VP9;
+},{"./constants.js":3}],3:[function(require,module,exports){
+module.exports = Object.freeze({
+    KEY_FRAME: 0,
+    CS_RGB : 7
 });
 },{}],4:[function(require,module,exports){
 'use strict';
 
 var VINT = require('./VINT.js');
-var VP9 = require('./codecs/VP9/common/common-data.js');
+var VP9 = require('./codecs/VP9/VP9.js');
 
 
 class FlareCodec {
@@ -380,14 +258,14 @@ class MasterSegment{
         this.info;
         this.tracks;
         this.cues;
-        this.clusters;
+        this.clusters = [];
         this.clusterCount = 0;
         this.clusterPreloadCount = 0;
         this.clusterSize = 0;
     }
     
     static CreateInstance(dataView, offset){
-        
+        //702
         if (offset < 0){
             console.warn("invalid position");
         }
@@ -410,23 +288,24 @@ class MasterSegment{
     }
     
     loadCluster(){
-        
+        //1024
+        this.doLoadCluster();
     }
     
     doLoadCluster(){
-        
+        //1033
     }
     
     appendCluster(){
-        
+        //1335
     }
     
     preloadCluster(){
-        
+        //1394
     }
     
     parseTopLevel() {
-        
+        //818
         var offset = this.dataOffset;
         var end = offset + this.size;
         var elementId;
@@ -485,6 +364,16 @@ class MasterSegment{
                     this.tags.dataOffset = offset;
                     this.tags.parse();
                     break;
+                //For now just load cluster data here    
+                case Element.IdTable.Cluster:
+                    var cluster
+                    cluster = new Cluster(this.dataView);
+                    cluster.offset = elementOffset;
+                    cluster.size = elementWidth.data;
+                    cluster.dataOffset = offset;
+                    cluster.parse();
+                    this.cluster = cluster;
+                    break;
                 default:
                     console.warn("not found id = " + elementId.raw);
                     break;
@@ -504,7 +393,13 @@ class MasterSegment{
     }
     
     load(){
+       //1448
         this.parseTopLevel();
+        
+        //while(true){
+          //this.loadCluster();  
+        //}
+        //
    // Outermost (level 0) segment object has been constructed,
   // and pos designates start of payload.  We need to find the
   // inner (level 1) elements.
@@ -528,6 +423,200 @@ class MasterSegment{
       return 0;
   }
         */
+    }
+}
+
+class Cluster{
+    
+    constructor(dataView){
+        
+        this.dataView = dataView;
+        this.offset;
+        this.dataOffset;
+        this.size;
+        this.timeCode;
+        this.entries = [];
+        this.entriesSize;
+        this.entriesCount;
+        this.segment;
+        
+    }
+    
+    parse(){
+        //6133
+        var offset = this.dataOffset;
+        var end = offset + this.size;
+        var elementId;
+        var elementWidth;
+        var elementOffset;
+        
+        while (offset < end) {
+            // cluster load 5909
+            //console.log(offset +","+ end);
+            elementOffset = offset;
+            elementId = VINT.read(this.dataView, offset);
+            offset += elementId.width;
+            elementWidth = VINT.read(this.dataView, offset);
+            offset += elementWidth.width;
+
+
+            switch (elementId.raw) {
+                
+                case Element.IdTable.Timecode:
+                    this.timeCode = Element.readUnsignedInt(this.dataView,offset, elementWidth.data);
+                    break;
+                case Element.IdTable.SimpleBlock:
+                    var entry = new SimpleBlock(this.dataView);
+                    //entry = new Cluster(this.dataView);
+                    entry.offset = elementOffset;
+                    entry.size = elementWidth.data;
+                    entry.dataOffset = offset;
+                    entry.parse();
+                    this.entries.push(entry);
+                    break;
+                case Element.IdTable.BlockGroup:
+                    
+                    console.warn("Need to implement block group");
+                    break;
+                default:
+                    console.warn("not found id = " + elementId.raw);
+                    break;
+
+
+            }
+            
+        
+            
+
+
+            offset += elementWidth.data;
+            
+        }
+
+
+    }
+    
+    getTime(){
+        
+    }
+    
+    getFirstTime(){
+        
+    }
+    
+    getLastTime(){
+        
+    }
+    
+    
+    
+}
+
+class BlockEntry{
+    
+    constructor(dataView){
+        
+        this.dataView = dataView;
+        this.offset;
+        this.dataOffset;
+        this.size;
+        this.kind;
+        this.cluster;
+    }
+
+}
+
+class Frame{
+    
+    constructor(dataView){
+        this.dataView = dataView;
+        this.offset;
+        this.dataOffset;
+        this.size;
+    }
+    
+    read(){
+        
+    }
+    
+}
+
+class SimpleBlock extends BlockEntry{
+    
+    constructor(dataView){
+        super(dataView);
+        this.offset;
+        this.dataOffset;
+        this.size;
+        this.block = new Block(dataView);
+        
+    }
+    
+    parse(){
+        this.block.dataOffset = this.dataOffset;
+        this.block.size = this.size;
+        this.block.parse();
+    }
+    
+}
+
+class Block{
+    
+    constructor(dataView){
+        
+        this.dataView = dataView;
+        this.offset;
+        this.dataOffset;
+        this.size;
+        this.flags;
+        this.track;
+        this.timeCode = -1;
+        this.frames = [];
+        this.frameCount;
+        this.discardPadding;
+    }
+    
+    getTime(){
+        
+    }
+    
+    isKey(){
+        
+    }
+    
+    setKey(){
+        
+    }
+    
+    isInvisible(){
+        
+    }
+    
+    parse(){
+        //7503
+        var offset = this.dataOffset;
+        var end = offset + this.size;
+        var elementId;
+        var elementWidth;
+        var elementOffset;
+        var trackId = VINT.read(this.dataView, offset);
+        this.track = trackId.data;
+        offset += trackId.width;
+        //now read timecode;
+        this.timeCode = this.dataView.getInt16(offset);
+        offset+=2;
+        
+        this.flags = this.dataView.getUint8(offset);
+        this.lacing = (this.flags & 0x06)>> 1;
+        offset++;
+        if (this.lacing === 0){
+            //no lacing;
+            this.frameCount = 1;
+            this.frames[0] = new Frame(this.dataView);
+            this.frames[0].dataOffset = offset;
+            this.frames[0].size = this.size;
+        }
+        //Element.readUnsignedInt(this.dataView,offset, elementWidth.data);
     }
 }
 
@@ -578,8 +667,10 @@ class SeekHead{
             offset += elementWidth.data;
             
         }
+        
         this.entryCount = this.entries.length;
         this.voidElementCount = this.voidElements.length;
+        
     }
     
 }
@@ -669,6 +760,47 @@ class Cues{
         this.offset;
         this.dataOffset;
         this.size;
+        this.segment;
+        this.cuePoints = [];
+        this.count;
+        this.preloadCount;
+        //this.position;
+    }
+    
+    getCount(){
+        return this.cuePoints.length;
+    }
+    
+    init(){
+        
+    }
+    
+    preloadCuePoint(){
+        
+    }
+    
+    find(){
+        
+    }
+    
+    getFirst(){
+        
+    }
+    
+    getLast(){
+        
+    }
+    
+    getNext(){
+        
+    }
+    
+    getBlock(){
+        
+    }
+    
+    findOrPreloadCluster(){
+        
     }
 }
 class Tracks{
@@ -683,6 +815,8 @@ class Tracks{
         this.trackEntriesEnd;
         
     }
+    
+    
     
     parse() {
         console.log("parsing tracks");
@@ -1189,6 +1323,12 @@ class Webm {
 
         var webm = new Webm(arrayBuffer);
         webm.parse();
+        /**
+         * testing decoding first frame
+         */
+        var firstFrame = webm.getFirstFrame();
+        var vp9 = new VP9();
+        vp9.decode(firstFrame);
         return webm;
 
     }
@@ -1202,6 +1342,17 @@ class Webm {
         return JSON.stringify(webm, null, 2);
     }
     
+    /**
+     * 
+     * Testing purposes only
+     */
+    getFirstFrame(){
+        var frameData = this.body.cluster.entries[0].block.frames[0];
+        var offset = frameData.dataOffset;
+        var size = frameData.size;
+        var frameBuffer = frameData.dataView.buffer.slice(offset, offset+size);
+        return new DataView(frameBuffer);
+    }
     /*
      * get parser version
      */
@@ -1596,25 +1747,7 @@ class EBMLBinary extends Element {
 
 }
 
-
-
-
-
-
-
-
-class Frame {
-
-    constructor() {
-        this.offset;
-        this.size;
-    }
-
-    read() {
-
-    }
-
-}
+        /*
 
 class Block extends EBMLBinary {
     
@@ -1663,7 +1796,7 @@ class Block extends EBMLBinary {
     }
 
 }
-
+*/
 
 Element.IdTable = {
     //Basics
@@ -1836,4 +1969,4 @@ if ("global" === "global") {
 
 }
 
-},{"./VINT.js":1,"./codecs/VP9/common/common-data.js":2}]},{},[4]);
+},{"./VINT.js":1,"./codecs/VP9/VP9.js":2}]},{},[4]);

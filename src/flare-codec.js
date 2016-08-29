@@ -1,7 +1,7 @@
 'use strict';
 
 var VINT = require('./VINT.js');
-var VP9 = require('./codecs/VP9/common/common-data.js');
+var VP9 = require('./codecs/VP9/VP9.js');
 
 
 class FlareCodec {
@@ -134,6 +134,16 @@ class MasterSegment{
                     this.tags.dataOffset = offset;
                     this.tags.parse();
                     break;
+                //For now just load cluster data here    
+                case Element.IdTable.Cluster:
+                    var cluster
+                    cluster = new Cluster(this.dataView);
+                    cluster.offset = elementOffset;
+                    cluster.size = elementWidth.data;
+                    cluster.dataOffset = offset;
+                    cluster.parse();
+                    this.cluster = cluster;
+                    break;
                 default:
                     console.warn("not found id = " + elementId.raw);
                     break;
@@ -157,7 +167,7 @@ class MasterSegment{
         this.parseTopLevel();
         
         //while(true){
-          this.LoadCluster();  
+          //this.loadCluster();  
         //}
         //
    // Outermost (level 0) segment object has been constructed,
@@ -183,6 +193,200 @@ class MasterSegment{
       return 0;
   }
         */
+    }
+}
+
+class Cluster{
+    
+    constructor(dataView){
+        
+        this.dataView = dataView;
+        this.offset;
+        this.dataOffset;
+        this.size;
+        this.timeCode;
+        this.entries = [];
+        this.entriesSize;
+        this.entriesCount;
+        this.segment;
+        
+    }
+    
+    parse(){
+        //6133
+        var offset = this.dataOffset;
+        var end = offset + this.size;
+        var elementId;
+        var elementWidth;
+        var elementOffset;
+        
+        while (offset < end) {
+            // cluster load 5909
+            //console.log(offset +","+ end);
+            elementOffset = offset;
+            elementId = VINT.read(this.dataView, offset);
+            offset += elementId.width;
+            elementWidth = VINT.read(this.dataView, offset);
+            offset += elementWidth.width;
+
+
+            switch (elementId.raw) {
+                
+                case Element.IdTable.Timecode:
+                    this.timeCode = Element.readUnsignedInt(this.dataView,offset, elementWidth.data);
+                    break;
+                case Element.IdTable.SimpleBlock:
+                    var entry = new SimpleBlock(this.dataView);
+                    //entry = new Cluster(this.dataView);
+                    entry.offset = elementOffset;
+                    entry.size = elementWidth.data;
+                    entry.dataOffset = offset;
+                    entry.parse();
+                    this.entries.push(entry);
+                    break;
+                case Element.IdTable.BlockGroup:
+                    
+                    console.warn("Need to implement block group");
+                    break;
+                default:
+                    console.warn("not found id = " + elementId.raw);
+                    break;
+
+
+            }
+            
+        
+            
+
+
+            offset += elementWidth.data;
+            
+        }
+
+
+    }
+    
+    getTime(){
+        
+    }
+    
+    getFirstTime(){
+        
+    }
+    
+    getLastTime(){
+        
+    }
+    
+    
+    
+}
+
+class BlockEntry{
+    
+    constructor(dataView){
+        
+        this.dataView = dataView;
+        this.offset;
+        this.dataOffset;
+        this.size;
+        this.kind;
+        this.cluster;
+    }
+
+}
+
+class Frame{
+    
+    constructor(dataView){
+        this.dataView = dataView;
+        this.offset;
+        this.dataOffset;
+        this.size;
+    }
+    
+    read(){
+        
+    }
+    
+}
+
+class SimpleBlock extends BlockEntry{
+    
+    constructor(dataView){
+        super(dataView);
+        this.offset;
+        this.dataOffset;
+        this.size;
+        this.block = new Block(dataView);
+        
+    }
+    
+    parse(){
+        this.block.dataOffset = this.dataOffset;
+        this.block.size = this.size;
+        this.block.parse();
+    }
+    
+}
+
+class Block{
+    
+    constructor(dataView){
+        
+        this.dataView = dataView;
+        this.offset;
+        this.dataOffset;
+        this.size;
+        this.flags;
+        this.track;
+        this.timeCode = -1;
+        this.frames = [];
+        this.frameCount;
+        this.discardPadding;
+    }
+    
+    getTime(){
+        
+    }
+    
+    isKey(){
+        
+    }
+    
+    setKey(){
+        
+    }
+    
+    isInvisible(){
+        
+    }
+    
+    parse(){
+        //7503
+        var offset = this.dataOffset;
+        var end = offset + this.size;
+        var elementId;
+        var elementWidth;
+        var elementOffset;
+        var trackId = VINT.read(this.dataView, offset);
+        this.track = trackId.data;
+        offset += trackId.width;
+        //now read timecode;
+        this.timeCode = this.dataView.getInt16(offset);
+        offset+=2;
+        
+        this.flags = this.dataView.getUint8(offset);
+        this.lacing = (this.flags & 0x06)>> 1;
+        offset++;
+        if (this.lacing === 0){
+            //no lacing;
+            this.frameCount = 1;
+            this.frames[0] = new Frame(this.dataView);
+            this.frames[0].dataOffset = offset;
+            this.frames[0].size = this.size;
+        }
+        //Element.readUnsignedInt(this.dataView,offset, elementWidth.data);
     }
 }
 
@@ -233,8 +437,10 @@ class SeekHead{
             offset += elementWidth.data;
             
         }
+        
         this.entryCount = this.entries.length;
         this.voidElementCount = this.voidElements.length;
+        
     }
     
 }
@@ -887,6 +1093,12 @@ class Webm {
 
         var webm = new Webm(arrayBuffer);
         webm.parse();
+        /**
+         * testing decoding first frame
+         */
+        var firstFrame = webm.getFirstFrame();
+        var vp9 = new VP9();
+        vp9.decode(firstFrame);
         return webm;
 
     }
@@ -900,6 +1112,17 @@ class Webm {
         return JSON.stringify(webm, null, 2);
     }
     
+    /**
+     * 
+     * Testing purposes only
+     */
+    getFirstFrame(){
+        var frameData = this.body.cluster.entries[0].block.frames[0];
+        var offset = frameData.dataOffset;
+        var size = frameData.size;
+        var frameBuffer = frameData.dataView.buffer.slice(offset, offset+size);
+        return new DataView(frameBuffer);
+    }
     /*
      * get parser version
      */
@@ -1294,25 +1517,7 @@ class EBMLBinary extends Element {
 
 }
 
-
-
-
-
-
-
-
-class Frame {
-
-    constructor() {
-        this.offset;
-        this.size;
-    }
-
-    read() {
-
-    }
-
-}
+        /*
 
 class Block extends EBMLBinary {
     
@@ -1361,7 +1566,7 @@ class Block extends EBMLBinary {
     }
 
 }
-
+*/
 
 Element.IdTable = {
     //Basics

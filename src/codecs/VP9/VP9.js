@@ -1,6 +1,7 @@
 'use strict';
 
 var CONSTANTS = require('./constants.js');
+var TABLES = require('./Tables.js');
 
 class Bitstream {
     constructor(dataView) {
@@ -31,10 +32,18 @@ class Bitstream {
         }
         return x;
     }
+    
+    s(n) {
+        
+        var value = this.f(n);
+        var sign = this.f(1);
+        return sign ? -value : value;
+    }
 }
 
 
 class VP9 {
+    
     constructor() {
 
     }
@@ -60,11 +69,19 @@ class Frame {
 
     decode() {
         var offset = this.offset;
+        var startBitPos = 0;
         this.frameHeader = new FrameHeader(this.bitstream);
         this.frameHeader.offset = offset;
         this.frameHeader.parse();
+        this.trailingBits();
+        if (this.frameHeader.headerSizeInBytes === 0) {
+            while (this.bitstream.bitPosition < (startBitPos + 8 * this.size))
+                this.bitstream.f(1);
+            return;
+        }
+        
+        this.loadProbs(this.frameHeader.frameContextIdx);
         /*
-        this.loadProbs(this.frameContextIdx);
         this.loadProbs2(this.frameContextIdx);
         this.clearCounts( );
         this.initBool(this.frameHeader.getSize());
@@ -79,8 +96,10 @@ class Frame {
     }
 
     trailingBits() {
-
+        while (this.bitstream.bitPosition & 7)
+            this.bitstream.f(1);
     }
+    
     loadProbs() {
 
     }
@@ -131,8 +150,6 @@ class FrameHeader {
         this.frameMarker = this.bitstream.f(2); // tempByte >> 6;
         this.profileLowBit = this.bitstream.f(1);
         this.profileHighBit = this.bitstream.f(1);
-        console.log("parsing");
-        console.log(this);
 
         this.profile = (this.profileHighBit << 1) + this.profileLowBit;
         if (this.profile === 3) {
@@ -211,34 +228,52 @@ class FrameHeader {
         }
 
         this.frameContextIdx = this.bitstream.f(1);
-        /*
-         if (this.frameIsIntra || this.errorResilientMode) {
-         this.setupPastIndependence( );
-         if (this.frameType === CONSTANTS.KEY_FRAME || this.errorResilientMode === 1
-         || this.resetFrameContext === 3) {
-         for (i = 0; i < 4; i++) {
-         this.save_probs(i);
-         }
-         } else if (resetFrameContext === 2) {
-         this.saveProbs(this.frameContextIdx);
-         }
-         this.frameContextIdx = 0;
-         }
-         this.loopFilterParams();
-         this.quantization_params();
-         this.segmentationParams();
-         this.tileInfo(offset);
-         this.headerSizeInBytes = this.dataView.getUint16(offset);
-         */
+
+        if (this.frameIsIntra || this.errorResilientMode) {
+            this.setupPastIndependence();
+            if (this.frameType === CONSTANTS.KEY_FRAME || this.errorResilientMode === 1
+                    || this.resetFrameContext === 3) {
+                for (var i = 0; i < 4; i++) {
+                    this.saveProbs(i);
+                }
+            } else if (resetFrameContext === 2) {
+                this.saveProbs(this.frameContextIdx);
+            }
+            this.frameContextIdx = 0;
+        }
+        this.loopFilterParams();
+        this.quantizationParams();
+        this.segmentationParams();
+        this.tileInfo();
+        this.headerSizeInBytes = this.bitstream.f(16);
+
         console.log(this);
     }
 
     setupPastIndependence() {
 
     }
+    
+    saveProbs(i){
+        
+    }
 
-    tileInfo(offset) {
-
+    tileInfo() {
+        this.minLog2TileCols = this.calcMinLog2TileCols();
+        this.maxLog2TileCols = this.calcMaxLog2TileCols();
+        this.tileColsLog2 = this.minLog2TileCols;
+        while (this.tileColsLog2 < this.maxLog2TileCols) {
+            this.incrementTileColsLog2 = this.bitstream.f(1);
+            if (this.incrementTileColsLog2 === 1)
+                this.tileColsLog2++;
+            else
+                break;
+        }
+        this.tileRowsLog2 = this.bitstream.f(1);
+        if (this.tileRowsLog2 == 1) {
+            this.incrementTileRowsLog2 = this.bitstream.f(1);
+            this.tileRowsLog2 += this.incrementTileRowsLog2;
+        }
     }
 
     frameSyncCode() {
@@ -262,20 +297,120 @@ class FrameHeader {
     }
 
     loopFilterParams() {
-
+        this.loopFilterLevel = this.bitstream.f(6);
+        this.loopFilterSharpness = this.bitstream.f(3);
+        this.loopFilterDeltaEnabled = this.bitstream.f(1);
+        if (this.loopFilterDeltaEnabled === 1) {
+            this.loopFilterDeltaUpdate = this.bitstream.f(1);
+            if (this.loopFilterDeltaUpdate === 1) {
+                for (var i = 0; i < 4; i++) {
+                    this.updateRefDelta = this.bitstream.f(1);
+                    if (this.updateRefDelta === 1)
+                        this.loopFilterRefDeltas[ i ] = this.bitstream.s(6);
+                }
+                for (var i = 0; i < 2; i++) {
+                    this.updateModeDelta = this.bitstream.f(1);
+                    if (this.updateModeDelta == 1)
+                        this.loopFilterModeDeltas[ i ] = this.bitstream.s(6);
+                }
+            }
+        }
     }
 
     quantizationParams() {
-
+        this.base_q_idx = this.bitstream.f(8);
+        this.delta_q_y_dc = this.readDeltaQ();
+        this.delta_q_uv_dc = this.readDeltaQ();
+        this.delta_q_uv_ac = this.readDeltaQ();
+        this.lossless = this.base_q_idx == 0 && this.delta_q_y_dc == 0 && this.delta_q_uv_dc == 0 && this.delta_q_uv_ac == 0;
+    }
+    
+    readDeltaQ() {
+        this.deltaCoded = this.bitstream.f(1);
+        if (this.deltaCoded) {
+            this.deltaQ = this.bitstream.s(4);
+        } else {
+            this.deltaQ = 0;
+        }
+        return this.deltaQ;
     }
 
     segmentationParams() {
-
+        this.segmentationEnabled = this.bitstream.f(1);
+        if (this.segmentationEnabled === 1) {
+            this.segmentationUpdateMap = this.bitstream.f(1);
+            if (this.segmentationUpdateMap === 1) {
+                for (var i = 0; i < 7; i++)
+                    this.segmentationTreeProbs[ i ] = this.readProb( );
+                this.segmentationTemporalUpdate = this.bitstream.f(1);
+                for (var i = 0; i < 3; i++)
+                    this.segmentationPredProb[ i ] = this.segmentationTemporalUpdate ? read_prob() : 255;
+            }
+            this.segmentationUpdateData = this.bitstream.f(1);
+            if (this.segmentationUpdateData == 1) {
+                this.segmentationAbsOrDeltaUpdate = this.bitstream.f(1);
+                for (var i = 0; i < CONSTANTS.MAX_SEGMENTS; i++) {
+                    for (var j = 0; j < CONSTANTS.SEG_LVL_MAX; j++) {
+                        this.featureValue = 0;
+                        this.featureEnabled = this.bitstream.f(1);
+                        this.FeatureEnabled[ i ][ j ] = this.featureEnabled;
+                        if (this.featureEnabled === 1) {
+                            var bitsToRead = TABLES.SEGMENTATION_FEATURE_BITS[ j ];
+                            this.featureValue = this.bitstream.f(bitsToRead);
+                            if (TABLES.SEGMENTATION_FEATURE_SIGNED[ j ] === 1) {
+                                this.featureSign = this.bitstream.f(1);
+                                if (featureSign === 1)
+                                    featureValue *= -1;
+                            }
+                        }
+                        this.FeatureData[ i ][ j ] = this.featureValue;
+                    }
+                }
+            }
+        }
     }
 
     tileInfo() {
-
+        this.minLog2TileCols = this.calcMinLog2TileCols();
+        this.maxLog2TileCols = this.calcMaxLog2TileCols();
+        this.tileColsLog2 = this.minLog2TileCols;
+        while (this.tileColsLog2 < this.maxLog2TileCols) {
+            this.incrementTileColsLog2 = this.bitstream.f(1);
+            if (this.incrementTileColsLog2 == 1)
+                this.tileColsLog2++
+            else
+                break;
+        }
+        this.tileRowsLog2 = this.bitstream.f(1);
+        if (this.tileRowsLog2 == 1) {
+            this.incrementTileRowsLog2 = this.bitstream.f(1);
+            this.tileRowsLog2 += this.incrementTileRowsLog2;
+        }
     }   
+    
+    calcMinLog2TileCols() {
+        var minLog2 = 0;
+        while ((CONSTANTS.MAX_TILE_WIDTH_B64 << minLog2) < this.sb64Cols)
+            minLog2++;
+        return minLog2;
+    }
+
+    calcMaxLog2TileCols() {
+        var maxLog2 = 1;
+        while ((this.sb64Cols >> maxLog2) >= CONSTANTS.MIN_TILE_WIDTH_B64)
+            maxLog2++;
+        return maxLog2 - 1;
+    }
+    
+    readProb() {
+        var probCoded = this.bitstream.f(1);
+        if (probCoded) {
+            prob = this.bitstream.f(8);
+        } else {
+            prob = 255;
+        }
+        return prob;
+    }
 
     renderSize() {
 

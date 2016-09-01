@@ -1096,9 +1096,13 @@ class Webm {
         /**
          * testing decoding first frame
          */
-        var firstFrame = webm.getFirstFrame();
+        //var firstFrame = webm.getFirstFrame();
+        var frameData = webm.body.cluster.entries[0].block.frames[0];
+        var offset = frameData.dataOffset;
+        //console.log(offset);
+        var size = frameData.size;
         var vp9 = new VP9();
-        vp9.decode(firstFrame);
+        vp9.decode(webm.dataview , offset , size);
         return webm;
 
     }
@@ -1121,7 +1125,7 @@ class Webm {
         var offset = frameData.dataOffset;
         var size = frameData.size;
         var frameBuffer = frameData.dataView.buffer.slice(offset, offset+size);
-        return new DataView(frameBuffer);
+        return new DataView(this.dataView , offset);
     }
     /*
      * get parser version

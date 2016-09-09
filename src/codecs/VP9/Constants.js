@@ -116,7 +116,10 @@ module.exports = Object.freeze({
     BOTH_NEW: 4,
     INTRA_PLUS_NON_INTRA: 5,
     BOTH_INTRA: 6,
-    INVALID_CASE: 9
+    INVALID_CASE: 9,
+    
+    
+    
 
 
 });

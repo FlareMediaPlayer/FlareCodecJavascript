@@ -2,6 +2,10 @@
 
 var CONSTANTS = require('./constants.js');
 var TABLES = require('./Tables.js');
+var ScanTables = require('./common/ScanTables');
+var FixedProbabilityTables = require('./common/FixedProbabilityTables');
+var CONVERSION_TABLES = require('./common/ConversionTables');
+//var DefaultProbabilityTables;
 
 class Bitstream {
     constructor(dataView) {
@@ -32,18 +36,84 @@ class Bitstream {
         }
         return x;
     }
-    
+
     s(n) {
-        
+
         var value = this.f(n);
         var sign = this.f(1);
         return sign ? -value : value;
     }
+
+    L(n) {
+        var x = 0;
+        for (var i = 0; i < n; i++) {
+            x = 2 * x + this.readBool(128);
+        }
+        return x;
+    }
+    
+    B(p){
+       return this.readBool(p); 
+    }
+
+    initBool(sz) {
+        if (sz < 1)
+            console.warn("invalid bool size");
+        //9.2.1
+        this.boolValue = this.f(8);
+        this.boolRange = 255;
+        this.boolMaxBits = 8 * sz - 8;
+        //this.readBool(0);
+    }
+
+    readBool(p) {
+        //p range 0 to 255
+        var bool;
+        this.split = 1 + (((this.boolRange - 1) * p) >> 8);
+        if (this.boolValue < this.split) {
+            this.boolRange = this.split;
+            bool = 0;
+        } else {
+            this.boolRange -= this.split;
+            this.boolValue -= this.split;
+            bool = 1;
+        }
+        while (this.boolRange < 128) {
+            var newBit;
+            if (this.boolMaxBits > 0) {
+                var newBit = this.f(1);
+                this.boolMaxBits--;
+            } else {
+                newBit = 0;
+
+            }
+            this.boolRange *= 2;
+            this.boolValue = (this.boolValue << 1) + newBit;
+        }
+        
+        return bool;
+
+    }
+
+    readLitteral(n) {
+        var x = 0;
+        for (var i = 0; i < n; i++) {
+            x = 2 * x + this.readBool(128);
+        }
+        return x;
+    }
+
+    exitBool() {
+        //var padding = f(this.boolMaxBits);
+        console.log(padding);
+    }
+
+    
 }
 
 
 class VP9 {
-    
+    // DEcoding process = 8
     constructor() {
 
     }
@@ -52,12 +122,31 @@ class VP9 {
         //void vp9_decode_frame 2154
         var frame = new Frame(dataView, offset, size);
         frame.decode();
-    }
+        if(frame.frameHeader.showFrame === 1){
+            var w = frame.frameHeader.frameWidth;
+            var h = frame.frameHeader.frameHeight;
+            var subX = frame.frameHeader.subsamplingX;
+            var subY= frame.frameHeader.subsamplingY;
+            var decodedFrame;
+            return decodedFrame;  
+        }
+        //Y is luma sample
+        //chroma samples are U and V
+        /*
 
+− The Y plane is w samples across by h samples down and the sample at location x samples across and y
+samples down is given by CurrFrame[ 0 ][ y ][ x ] with x = 0..w - 1 and y = 0..h - 1.
+− The U plane is (w + subX) >> subX samples across by (h + subY) >> subY samples down and the sample at location x samples across and y samples down is given by CurrFrame[ 1 ][ y ][ x ] with x = 0..((w + subX) >> subX) - 1 and y = 0..((h + subY) >> subY) - 1.
+− The V plane is (w + subX) >> subX samples across by (h + subY) >> subY samples down and the sample at location x samples across and y samples down is given by CurrFrame[ 2 ][ x ][ y ] with x = 0..((w + subX) >> subX) - 1 and y = 0..((h + subY) >> subY) - 1.
+− The bit depth for each sample is BitDepth.
+        */
+       
+    }
+ 
 }
 
 class Frame {
-    //vp9_decode_frame
+    //vp9_decode_frame 2157
     constructor(dataView, offset, size) {
         this.bitstream = new Bitstream(dataView);
         this.bitstream.offset = offset;
@@ -81,17 +170,23 @@ class Frame {
         }
         
         this.loadProbs(this.frameHeader.frameContextIdx);
-        /*
-        this.loadProbs2(this.frameContextIdx);
+        this.loadProbs2(this.frameHeader.frameContextIdx);
         this.clearCounts( );
-        this.initBool(this.frameHeader.getSize());
-        this.compressedHeader();
-        this.exitBool();
-        this.endBitPos = offset;
+        
+        this.bitstream.initBool(this.frameHeader.headerSizeInBytes);
+        console.log(this.bitstream);
+        this.compressedHeader = new CompressedHeader(this.bitstream , this);
+        this.compressedHeader.parse();
+   
+        
+        this.bitstream.exitBool();
+     
+        this.endBitPos = this.bitstream.bitPosition;
         this.headerBytes = (this.endBitPos - this.offset);
         this.decodeTiles(this.size - this.headerBytes);
+        
         this.refreshProbs();
-        */
+
 
     }
 
@@ -103,28 +198,285 @@ class Frame {
     loadProbs() {
 
     }
+    
     loadProbs2() {
 
     }
+    
     clearCounts() {
 
     }
-    initBool() {
+    
+    clearAboveContext(){
+        
+    }
+
+    decodeTiles(sz) {
+        this.tileCols = 1 << this.frameHeader.tileColsLog2;
+        this.tileRows = 1 << this.frameHeader.tileRowsLog2;
+        this.clearAboveContext();
+        for (var tileRow = 0; tileRow < tileRows; tileRow++) {
+            for (var tileCol = 0; tileCol < tileCols; tileCol++) {
+                this.lastTile = (tileRow === tileRows - 1) && (tileCol === tileCols - 1)
+                if (this.lastTile) {
+                    this.tileSize = sz;
+                } else {
+                    this.tileSize = this.bitstream.f(32);
+                    sz -= this.tileSize + 4;
+                }
+                this.miRowStart = get_tile_offset(tileRow, MiRows, tile_rows_log2)
+                this.miRowEnd = get_tile_offset(tileRow + 1, MiRows, tile_rows_log2)
+                this.miColStart = get_tile_offset(tileCol, MiCols, tile_cols_log2)
+                this.miColEnd = get_tile_offset(tileCol + 1, MiCols, tile_cols_log2)
+                this.bitstream.initBool(this.tileSize);
+
+                this.decode_tile();
+                this.bitstream.exitBool();
+
+            }
+        }
+ 
+    }
+    
+    getTileOffset(tileNum, mis, tileSzLog2) {
+        var sbs = (mis + 7) >> 3;
+        var offset = ((tileNum * sbs) >> tileSzLog2) << 3;
+
+        return Math.min(offset, mis);
+    }
+    
+    decode_tile() {
+        for (r = MiRowStart; r < MiRowEnd; r += 8) {
+            clearLeftContext();
+            for (c = MiColStart; c < MiColEnd; c += 8)
+                decode_partition(r, c, CONSTANTS.BLOCK_64X64)
+        }
 
     }
-    compressedHeader() {
+    
+    decode_partition(r, c, bsize) {
+if (r >= MiRows || c >= MiCols)
 
-    }
-    exitBool() {
+        return 0
+        num8x8 = num_8x8_blocks_wide_lookup[ bsize ]
 
-    }
-    decodeTiles() {
+        halfBlock8x8 = num8x8 >> 1
+        hasRows = (r + halfBlock8x8) < MiRows
 
-    }
+        hasCols = (c + halfBlock8x8) < MiCols
+        partition
+        T
+        subsize = subsize_lookup[ partition][ bsize ]
+        if (subsize < BLOCK_8X8 || partition == PARTITION_NONE) {
+decode_block(r, c, subsize)
+        } else if (partition == PARTITION_HORZ) {
+decode_block(r, c, subsize)
+        if (hasRows)
+        decode_block(r + halfBlock8x8, c, subsize)
+        } else if (partition == PARTITION_VERT) {
+decode_block(r, c, subsize)
+        if (hasCols)
+
+        decode_block(r, c + halfBlock8x8, subsize)
+        } else {
+decode_partition(r, c, subsize)
+        decode_partition(r, c + halfBlock8x8, subsize)
+        decode_partition(r + halfBlock8x8, c, subsize)
+        decode_partition(r + halfBlock8x8, c + halfBlock8x8, subsize)
+        }
+if (bsize == BLOCK_8X8 || partition != PARTITION_SPLIT) {
+for (i = 0; i < num8x8; i ++) {
+AbovePartitionContext[ c + i ] = 15 >> b_width_log2_lookup[ subsize ]
+LeftPartitionContext[ r + i ] = 15 >> b_height_log2_lookup[ subsize ]
+        }
+}
+}
+}
+
     refreshProbs() {
 
     }
+    
 
+
+}
+
+class CompressedHeader{
+    
+    constructor(bitstream , frame) {
+        this.bitstream = bitstream;
+        this.frame = frame;
+    }
+    
+    parse() {
+        this.readTxMode();
+        if (this.isTxMode === CONSTANTS.TX_MODE_SELECT) {
+            this.txModeProbs();
+        }
+        this.readCoefProbs();
+        this.readSkipProb();
+        if (this.frame.frameIsIntra === 0) {
+            this.readInterModeProbs();
+            if (this.interpolationFilter === CONSTANTS.SWITCHABLE)
+                this.readInterpFilterProbs();
+            this.readIsInterProbs();
+            this.frameReferenceMode();
+            this.frameReferenceModeProbs();
+            this.readYmodeProbs();
+            this.readPartitionProbs();
+            this.mvProbs();
+        }
+        
+        
+        console.log(this);
+    }
+    
+    readInterpFilterProbs(){
+        
+    }
+    
+    readIsInterProbs(){
+        
+    }
+    
+    frameReferenceMode(){
+        
+    }
+    
+    frameReferenceModeProbs(){
+        
+    }
+    
+    readYmodeProbs(){
+        
+    }
+    
+    readPartitionProbs(){
+        
+    }
+    
+    mvProbs(){
+        
+    }
+
+    readCoefProbs() {
+        this.maxTxSize = CONVERSION_TABLES.TX_MODE_TO_BIGGEST_TX_SIZE[ this.txMode ];
+
+        for (var txSz = CONSTANTS.TX_4X4; txSz <= this.maxTxSize; txSz++) {
+            this.updateProbs = this.bitstream.L(1);
+            if (this.updateProbs === 1) {
+                for (var i = 0; i < 2; i++)
+                    for (var j = 0; j < 2; j++)
+                        for (var k = 0; k < 6; k++) {
+
+                            this.maxL = (k === 0) ? 3 : 6;
+                            for (var l = 0; l < maxL; l++)
+                                for (var m = 0; m < 3; m++)
+                                    this.coefProbs[ txSz ][ i ][ j ][ k ][ l ][ m ] = this.diffUpdateProb(this.coefProbs[ txSz ][ i ][ j ][ k ][ l ][ m ]);
+                        }
+            }
+
+        }
+    }
+
+    diffUpdateProb(prob) {
+        
+        var updateProb = this.bitstream.B(252);
+
+        if (updateProb === 1) {
+            deltaProb = this.decodeTermSubexp();
+
+            prob = this.invRemapProb(deltaProb, prob);
+        }
+
+        return prob;
+    }
+    
+    decodeTermSubexp() {
+        var bit = this.bitstream.L(1);
+        if (bit === 0) {
+            var subExpVal = this.bitstream.L(4);
+            return subExpVal;
+        }
+        bit = this.bitstream.L(1);
+        if (bit === 0) {
+            var subExpValMinus16 = this.bitstream.L(4);
+            return subExpValMinus16 + 16;
+        }
+        bit = this.bitstream.L(1);
+        if (bit === 0) {
+            var subExpValMinus32 = this.bitstream.L(5);
+            return subExpValMinus32 + 32;
+        }
+        var v = this.bitstream.L(7);
+        if (v < 65)
+            return v + 64;
+        bit = this.bitstream.L(1);
+        return (v << 1) - 1 + bit;
+    }
+    
+    invRemapProb(deltaProb, prob) {
+        var m = prob;
+        var v = deltaProb;
+        v = TABLES.INV_MAP_TABLE[v];
+        m--;
+        if ((m << 1) <= 255)
+            m = 1 + this.invRecenterNonneg(v, m);
+        else
+            m = 255 - this.invRecenterNonneg(v, 255 - 1 - m);
+        return m;
+    }
+    
+    invRecenterNonneg(v, m) {
+        if (v > 2 * m)
+            return v
+        if (v & 1)
+            return m - ((v + 1) >> 1);
+        return m + (v >> 1);
+    }
+    
+    readSkipProb(){
+        
+    }
+    
+    readInterModeProbs(){
+        
+    }
+    
+    txModeProbs() {
+
+        for (var i = 0; i < CONSTANTS.TX_SIZE_CONTEXTS; i++)
+            for (var j = 0; j < CONSTANTS.TX_SIZES - 3; j++)
+                this.txProbs8x8[ i ][ j ] = this.diffUpdateProb(this.txProbs8x8[ i ][ j ]);
+        for (var i = 0; i < CONSTANTS.TX_SIZE_CONTEXTS; i++)
+            for (var j = 0; j < CONSTANTS.TX_SIZES - 2; j++)
+                this.txProbs16x16[ i ][ j ] = this.diffUpdateProb(this.txProbs16x16[ i ][ j ]);
+
+        for (var i = 0; i < CONSTANTS.TX_SIZE_CONTEXTS; i++)
+            for (var j = 0; j < CONSTANTS.TX_SIZES - 1; j++)
+                this.txProbs32x32[ i ][ j ] = this.diffUpdateProb(this.txProbs32x32[ i ][ j ]);
+
+    }
+    
+    readTxMode() {
+        if (this.frame.frameHeader.lossless === true) {
+            this.txMode = CONSTANTS.ONLY_4X4;
+        } else {
+            
+            this.txMode = this.bitstream.L(2);
+            if (this.txMode === CONSTANTS.ALLOW_32X32) {
+                this.txModeSelect = this.bitstream.L(1);
+
+                this.txMode += this.txModeSelect;
+            }
+        } 
+    }
+    
+    readSkipProb() {
+        for (var i = 0; i < CONSTANTS.SKIP_CONTEXTS; i++)
+            this.skipProb[ i ] = this.diffUpdateProb(this.skipProb[ i ]);
+    }
+    
 }
 
 class FrameHeader {
@@ -138,10 +490,6 @@ class FrameHeader {
         this.profileHighBit;
         this.profile;
         this.dataOffset;
-    }
-
-    getSize() {
-        return -1;
     }
 
     parse() {
@@ -322,7 +670,7 @@ class FrameHeader {
         this.delta_q_y_dc = this.readDeltaQ();
         this.delta_q_uv_dc = this.readDeltaQ();
         this.delta_q_uv_ac = this.readDeltaQ();
-        this.lossless = this.base_q_idx == 0 && this.delta_q_y_dc == 0 && this.delta_q_uv_dc == 0 && this.delta_q_uv_ac == 0;
+        this.lossless = this.base_q_idx === 0 && this.delta_q_y_dc === 0 && this.delta_q_uv_dc === 0 && this.delta_q_uv_ac === 0;
     }
     
     readDeltaQ() {
